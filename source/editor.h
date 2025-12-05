@@ -1,0 +1,70 @@
+//
+//  editor.h
+//  te
+//
+//  Created by Thomas Foster on 10/20/25.
+//
+
+#ifndef editor_h
+#define editor_h
+
+#include "undo.h"
+#include "map.h"
+#include "view.h"
+
+#include <stdbool.h>
+#include <SDL3/SDL.h>
+
+#define MAP_NAME_LEN 128
+#define MAX_FLAGS 32
+#define BG_GRAY 38
+#define LT_GRAY 64
+#define BORDER_GRAY 64
+
+// System control key for ctrl-s, ctrl-c, etc.
+#ifdef __APPLE__
+#define CTRL_KEY (SDL_KMOD_GUI)
+#else
+#define CTRL_KEY (SDL_KMOD_CTRL)
+#endif
+
+#define SWAP(a, b) \
+    do { __typeof__(a) _tmp = (a); (a) = (b); (b) = _tmp; } while (0)
+
+typedef enum {
+    TOOL_ERASE, // E
+    TOOL_PAINT, // P
+    TOOL_FILL,  // F
+    TOOL_LINE,  // L
+    TOOL_RECT,  // R
+
+    TOOL_COUNT,
+} Tool;
+
+typedef struct {
+    char name[128];
+    bool is_visible;
+} EditorLayer;
+
+typedef struct {
+    bool (* respond)(const SDL_Event *);
+    void (* update)(void);
+    void (* render)(void);
+} State;
+
+// TODO: any other per-map settings?
+typedef struct editor_map {
+    char path[MAP_NAME_LEN];
+    Map map;
+    View view;
+    History history;
+    int screen_x; // Which screen being viewed.
+    int screen_y;
+    bool is_dirty;
+
+    struct editor_map * next;
+} EditorMap;
+
+void SetStatus(const char * fmt, ...);
+
+#endif /* editor_h */
