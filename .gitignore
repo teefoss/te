@@ -1,0 +1,9 @@
+Assets.xcassets
+te.entitlements
+.DS_Store
+graphics/*
+*.temap
+*.teproj
+.state/
+assets/
+te
