@@ -20,7 +20,7 @@ static EditorMap * map_tail;
 EditorMap * map; // being edited.
 char current_map_name[MAP_NAME_LEN];
 
-void OpenEditorMap(const char * path, int width, int height, int num_layers)
+void OpenEditorMap(const char * path, Uint16 width, Uint16 height, Uint8 num_layers)
 {
     EditorMap * new_map = SDL_calloc(1, sizeof(EditorMap));
     if ( new_map == NULL ) {

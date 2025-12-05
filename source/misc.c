@@ -12,7 +12,7 @@
 
 SDL_Rect RectFloatToInt(const SDL_FRect * r)
 {
-    return (SDL_Rect){ r->x, r->y, r->w, r->h };
+    return (SDL_Rect){ (int)r->x, (int)r->y, (int)r->w, (int)r->h };
 }
 
 SDL_FRect RectIntToFloat(const SDL_Rect * r)

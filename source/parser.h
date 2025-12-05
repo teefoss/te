@@ -19,7 +19,7 @@ bool AcceptSymbol(char * out);
 
 // Require a token of a specific type, but any value.
 int  ExpectInt(void);
-void ExpectString(char * out, int len);
+void ExpectString(char * out, size_t len);
 void ExpectIdent(char * out, size_t len);
 
 // Require a token of a specific type and value.

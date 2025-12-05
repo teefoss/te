@@ -78,14 +78,14 @@ void SetColor(SDL_Color c)
     SDL_SetRenderDrawColor(renderer, c.r, c.g, c.b, c.a);
 }
 
-void SetGray(int value)
+void SetGray(Uint8 value)
 {
     SDL_SetRenderDrawColor(renderer, value, value, value, 255);
 }
 
 /// This functions destroys the surface.
 static Font *
-_LoadFontFromSurface(SDL_Surface * surface, int cell_w, int cell_h)
+_LoadFontFromSurface(SDL_Surface * surface, Uint8 cell_w, Uint8 cell_h)
 {
     Font * font = SDL_calloc(1, sizeof(*font));
     if ( font == NULL ) goto error;
@@ -100,7 +100,7 @@ _LoadFontFromSurface(SDL_Surface * surface, int cell_w, int cell_h)
         int y = (ch / CELL_COLS) * cell_h;
 
         // Scan for width delimiter
-        int width = 0;
+        Uint8 width = 0;
         for ( int scan_x = x; scan_x < x + cell_w; scan_x++ ) {
             Uint8 r, g, b;
             SDL_ReadSurfacePixel(surface, scan_x, y, &r, &g, &b, NULL);
@@ -139,7 +139,7 @@ error:
 }
 
 Font *
-LoadFontFromData(unsigned char * data, size_t data_size, int cell_w, int cell_h)
+LoadFontFromData(unsigned char * data, size_t data_size, Uint8 cell_w, Uint8 cell_h)
 {
     SDL_IOStream * stream = SDL_IOFromConstMem(data, data_size);
     if ( stream == NULL ) {
@@ -157,7 +157,7 @@ LoadFontFromData(unsigned char * data, size_t data_size, int cell_w, int cell_h)
 }
 
 Font *
-LoadFontFromBMP(const char * bmp_path, int cell_w, int cell_h)
+LoadFontFromBMP(const char * bmp_path, Uint8 cell_w, Uint8 cell_h)
 {
     SDL_Surface * surface = SDL_LoadBMP(bmp_path);
     if ( surface == NULL ) {
@@ -170,17 +170,17 @@ LoadFontFromBMP(const char * bmp_path, int cell_w, int cell_h)
 
 int FontWidth(Font * font)
 {
-    return font->cell_w * font->scale;
+    return (int)(font->cell_w * font->scale);
 }
 
 int FontHeight(Font * font)
 {
-    return font->cell_h * font->scale;
+    return (int)(font->cell_h * font->scale);
 }
 
 int CharWidth(Font * font, char ch)
 {
-    return font->ch_widths[(int)ch] * font->scale;
+    return (int)(font->ch_widths[(int)ch] * font->scale);
 }
 
 int
@@ -205,7 +205,7 @@ RenderChar(Font * font, int x, int y, int ch)
     SDL_SetTextureColorMod(font->texture, r, g, b);
     SDL_RenderTexture(renderer, font->texture, &src, &dst);
 
-    return font->ch_widths[ch] * font->scale;
+    return (int)(font->ch_widths[ch] * font->scale);
 }
 
 int
@@ -232,7 +232,7 @@ RenderString(Font * font, int x, int y, const char * fmt, ...)
     int x1 = x;
     while ( *ch ) {
         RenderChar(font, x1, y, *ch);
-        x1 += font->ch_widths[(int)*ch] * font->scale;
+        x1 += (int)(font->ch_widths[(int)*ch] * font->scale);
         ch++;
     }
 
@@ -264,7 +264,7 @@ StringWidth(Font * font, const char * fmt, ...)
         width += font->ch_widths[(int)*c];
     }
 
-    return width * font->scale;
+    return (int)(width * font->scale);
 }
 
 #pragma mark - SOUND
@@ -276,7 +276,7 @@ static const SDL_AudioSpec spec = {
 };
 static SDL_AudioStream * stream;
 
-int volume = 5;
+Sint8 volume = 5;
 int sound_on = true;
 
 static double NoteNumberToFrequency(int note_num)
@@ -312,9 +312,9 @@ void QueueSound(unsigned frequency, unsigned milliseconds)
     if ( !sound_on ) return;
 
     float period = (float)spec.freq / (float)frequency;
-    int len = (float)spec.freq * ((float)milliseconds / 1000.0f);
+    int len = (int)((float)spec.freq * ((float)milliseconds / 1000.0f));
 
-    int8_t * buf = (int8_t *)malloc(len);
+    Sint8 * buf = (int8_t *)malloc((size_t)len);
 
     if ( buf == NULL ) {
         return;
@@ -352,7 +352,7 @@ void InitSound(void)
     // TODO: shutdown sound
 }
 
-void SetVolume(unsigned value)
+void SetVolume(Sint8 value)
 {
     if ( value > 15 ) value = 15;
     if ( value < 1 ) value = 1;
@@ -394,9 +394,9 @@ static void PlayError(const char * msg, int line_position)
     printf("Play syntax error: %s (position %d)\n.", msg, line_position);
 }
 
-static void QueueNoteNumber(int note_num, int note_ms, int silence_ms)
+static void QueueNoteNumber(int note_num, unsigned note_ms, unsigned silence_ms)
 {
-    QueueSound(NoteNumberToFrequency(note_num), note_ms);
+    QueueSound((unsigned)NoteNumberToFrequency(note_num), note_ms);
     QueueSound(0, silence_ms);
 }
 
@@ -439,7 +439,7 @@ void Play(const char * string, ...)
 
     const char * str = buffer;
     while ( *str != '\0') {
-        char c = toupper(*str++);
+        char c = (char)toupper(*str++);
         switch ( c ) {
             case 'A': case 'B': case 'C': case 'D': case 'E': case 'F':
             case 'G': case 'N': case 'P':
@@ -506,8 +506,8 @@ void Play(const char * string, ...)
                 }
 
                 // calculate articulation silence:
-                int note_ms = total_ms * ((float)mode / 8.0f);
-                int silence_ms = total_ms * ((8.0f - (float)mode) / 8.0f);
+                unsigned note_ms = (unsigned)(total_ms * ((float)mode / 8.0f));
+                unsigned silence_ms = (unsigned)(total_ms * ((8.0f - (float)mode) / 8.0f));
 
                 // and finally, queue it
                 QueueNoteNumber(note, note_ms, silence_ms);
@@ -558,7 +558,7 @@ void Play(const char * string, ...)
                 break;
 
             case 'M': {
-                char option = toupper(*str++);
+                char option = (char)toupper(*str++);
                 switch ( option ) {
                     case 'L': mode = mode_legato; break;
                     case 'N': mode = mode_normal; break;
@@ -811,7 +811,7 @@ LimitFrameRate(float fps)
 {
     Uint64 now = SDL_GetTicks();
     Uint64 elapsed = now - last;
-    Uint32 frame_ms = 1000.0f / fps;
+    Uint32 frame_ms = (Uint32)(1000.0f / fps);
 
     if ( elapsed < frame_ms ) {
         SDL_Delay(frame_ms - (Uint32)elapsed);

@@ -179,7 +179,7 @@ LoadConfig(const Option * options, const char * path)
                 break;
 
             case CONFIG_FLOAT:
-                *(float *)opt->value = strtod(val, NULL);
+                *(float *)opt->value = (float)strtod(val, NULL);
                 break;
 
             case CONFIG_DOUBLE:

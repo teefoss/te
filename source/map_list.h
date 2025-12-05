@@ -24,7 +24,7 @@ void SetCurrentMap(const char * path);
 const char * CurrentMapPath(void);
 
 void MapNextItem(int direction);
-void OpenEditorMap(const char * path, int width, int height, int num_layers);
+void OpenEditorMap(const char * path, Uint16 width, Uint16 height, Uint8 num_layers);
 void SaveCurrentMap(void);
 void UpdateMapViews(const SDL_Rect * palette_viewport, int font_height, int tile_size);
 

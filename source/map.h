@@ -35,7 +35,7 @@ typedef struct {
 
 typedef struct tileset {
     char id[64];
-    int first_gid;
+    GID first_gid;
     int rows;
     int columns;
     int num_tiles;
@@ -50,13 +50,13 @@ typedef struct {
     GID * tiles[MAX_LAYERS];
     Uint16 width;
     Uint16 height;
-    Uint16 num_layers;
+    Uint8 num_layers;
     SDL_Color bg_color;
 } Map;
 
 bool SaveMap(Map * map, const char * path);
 bool LoadMap(Map * map, const char * path);
-bool CreateMap(const char * path, int w, int h, int num_layers);
+bool CreateMap(const char * path, Uint16 w, Uint16 h, Uint8 num_layers);
 
 bool IsValidPosition(const Map * map, int x, int y);
 GID GetMapTile(const Map * map, int x, int y, int layer);
@@ -87,5 +87,12 @@ void RenderTile(SDL_Renderer * renderer,
                 GID gid,
                 Tileset * tilesets,
                 const SDL_FRect * dest);
+
+/// Render tile directly from tileset, assuming this is the only tileset in use.
+void RenderTile2(SDL_Renderer * renderer,
+                 GID gid,
+                 SDL_Texture * tileset,
+                 int tile_size,
+                 const SDL_FRect * dest);
 
 #endif /* __map_h */

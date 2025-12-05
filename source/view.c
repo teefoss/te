@@ -50,17 +50,17 @@ bool GetMouseTile(const View * view, int * x, int * y, int tile_size)
         return false;
     }
 
-    float mx, my;
-    SDL_GetMouseState(&mx, &my);
+    float mxf, myf;
+    SDL_GetMouseState(&mxf, &myf);
 
-    SDL_Point m = { mx, my };
+    SDL_Point m = { (int)mxf, (int)myf };
     if ( !SDL_PointInRect(&m, &view->viewport) ) {
         return false;
     }
 
     float scale = GetScale(view->zoom_index);
-    float wx = view->origin.x + (mx - view->viewport.x) / scale;
-    float wy = view->origin.y + (my - view->viewport.y) / scale;
+    int wx = (int)(view->origin.x + (mxf - view->viewport.x) / scale);
+    int wy = (int)(view->origin.y + (myf - view->viewport.y) / scale);
 
     int tile_x = wx / tile_size;
     int tile_y = wy / tile_size;
@@ -136,8 +136,8 @@ void ClampViewOrigin(View * v)
 {
     // Convert viewport size to content-space units.
     float scale = GetScale(v->zoom_index);
-    int viewport_w = v->viewport.w / scale;
-    int viewport_h = v->viewport.h / scale;
+    int viewport_w = (int)(v->viewport.w / scale);
+    int viewport_h = (int)(v->viewport.h / scale);
 
     int max_x = v->content_w - viewport_w;
     int max_y = v->content_h - viewport_h;

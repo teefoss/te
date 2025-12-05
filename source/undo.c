@@ -24,7 +24,7 @@ void BeginChange(EditorMap * map, ChangeType type)
             TileChanges * changes = &current_change.tile_changes;
             changes->count = 0;
             changes->allocated = 16;
-            changes->list = SDL_malloc(changes->allocated * sizeof(TileChange));
+            changes->list = SDL_malloc((size_t)changes->allocated * sizeof(TileChange));
             break;
         }
         default:
@@ -67,7 +67,7 @@ void AddTileChange(int x, int y, int layer, GID old, GID new)
     // Increase list size as needed.
     if ( changes->count >= changes->allocated ) {
         changes->allocated *= 2;
-        size_t size = changes->allocated * sizeof(TileChange);
+        size_t size = (size_t)changes->allocated * sizeof(TileChange);
         changes->list = SDL_realloc(changes->list, size);
     }
 
@@ -112,7 +112,7 @@ void RegisterMapSizeChange(EditorMap * map, int dx, int dy)
 
     change->num_tiles = save_w * save_h;
 
-    size_t size = change->num_tiles * sizeof(*change->tiles);
+    size_t size = (size_t)change->num_tiles * sizeof(*change->tiles);
     change->tiles = SDL_malloc(size);
 
     Tile * t = change->tiles;

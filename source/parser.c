@@ -71,7 +71,7 @@ static void GetToken(void)
     }
 
     if ( c == EOF || c == '\0' ) {
-        peek.type = EOF;
+        peek.type = (TokenType)EOF;
         return;
     }
 
@@ -79,7 +79,7 @@ static void GetToken(void)
         // Read identifier into peek.string
         char * p = peek.string;
         do {
-            *p++ = c;
+            *p++ = (char)c;
             if ( p == &peek.string[TOK_STR_LEN] ) break;
         } while ( (c = GetChar()) != EOF && (isalnum(c) || c == '_') );
 
@@ -98,7 +98,7 @@ static void GetToken(void)
         peek.type = TOK_NUMBER;
     } else if ( c == '"' ) {
         char * s = peek.string;
-        char last_char = c;
+        char last_char = (char)c;
         c = GetChar(); // Advance past the "
 
         // Fill token string until a " is found, etc
@@ -107,15 +107,15 @@ static void GetToken(void)
             if ( c == '"' && last_char != '\\' ) break; // End of string
             if ( s == peek.string + TOK_STR_LEN - 1 ) break; // No room.
 
-            *s++ = c;
-            last_char = c;
+            *s++ = (char)c;
+            last_char = (char)c;
             c = GetChar();
         }
 
         *s = '\0';
         peek.type = TOK_STRING;
     } else if ( ispunct(c) ) {
-        peek.symbol = c;
+        peek.symbol = (char)c;
         peek.type = TOK_SYMBOL;
     }
 }
@@ -242,21 +242,21 @@ char ExpectSymbol(void)
     return 0;
 }
 
-void ExpectString(char * out, int len)
+void ExpectString(char * out, size_t len)
 {
     if ( !AcceptString(out, len) ) {
         ParseError("expected string");
     }
 }
 
-static long _FileSize(FILE * file)
+static size_t _FileSize(FILE * file)
 {
     long current = ftell(file);
     fseek(file, 0, SEEK_END);
     long end = ftell(file);
     fseek(file, current, SEEK_SET);
 
-    return end;
+    return (size_t)end;
 }
 
 // TODO: this should be the version for tflib
@@ -292,7 +292,7 @@ bool BeginParsing(const char * path)
         return false;
     }
 
-    long size = _FileSize(file);
+    size_t size = _FileSize(file);
     input = malloc(size + 1);
 
     if ( input == NULL ) {

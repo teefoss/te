@@ -246,7 +246,7 @@ View * MouseView(void)
 {
     float mx, my;
     SDL_GetMouseState(&mx, &my);
-    SDL_Point mouse = { mx, my };
+    SDL_Point mouse = { (int)mx, (int)my };
 
     if ( SDL_PointInRect(&mouse, &map->view.viewport) ) {
         return &map->view;
@@ -270,7 +270,7 @@ static void CopyToClipboard(void)
     // Resize clipboard if needed.
     int slots_needed = _clipboard.width * _clipboard.height;
     if ( _clipboard.allocated_slots < slots_needed ) {
-        size_t size = slots_needed * sizeof(*_clipboard.tiles[0]);
+        size_t size = (size_t)slots_needed * sizeof(*_clipboard.tiles[0]);
         for ( int i = 0; i < map->map.num_layers; i++ ) {
             _clipboard.tiles[i] = realloc(_clipboard.tiles[i], size);
         }
@@ -484,7 +484,7 @@ void ReadProjectFile(void)
                 h = ExpectInt();
             }
 
-            OpenEditorMap(path, w, h, _num_layers);
+            OpenEditorMap(path, (Uint16)w, (Uint16)h, (Uint8)_num_layers);
         } else {
             fprintf(stderr, "Unknown property in '%s': '%s'\n", ident, project_path);
             exit(EXIT_FAILURE);
@@ -562,7 +562,7 @@ static void InitEditor(void)
 
 GID GetTileSetGID(int x, int y)
 {
-    int index = y * _active_tileset->columns + x;
+    GID index = (GID)(y * _active_tileset->columns + x);
     return _active_tileset->first_gid + index;
 }
 
@@ -581,7 +581,7 @@ void ApplyBrush(void)
         for ( ; src_x <= brush->max_x; src_x++, dst_x++ ) {
             if ( src_x >= m->width ) break;
 
-            Uint16 dst_index = dst_y * m->width + dst_x;
+            Uint16 dst_index = (Uint16)(dst_y * m->width + dst_x);
             Uint16 gid = GetTileSetGID(src_x, src_y);
             if ( m->tiles[_layer][dst_index] != gid ) {
                 GID old = m->tiles[_layer][dst_index];
@@ -712,7 +712,7 @@ static void RenderClipboard(void)
 void RenderBorder(SDL_Rect r)
 {
     SDL_FRect border = { r.x - 1, r.y - 1, r.w + 2, r.h + 2 };
-    int gray = LT_GRAY;
+    Uint8 gray = LT_GRAY;
     SDL_SetRenderDrawColor(renderer, gray, gray, gray, 255);
     SDL_RenderRect(renderer, &border);
     border.x -= 1;
@@ -730,7 +730,7 @@ void RenderMapView(void)
     SDL_SetRenderViewport(renderer, &map_view->viewport);
 
     // Background gray
-    int gray = LT_GRAY;
+    Uint8 gray = LT_GRAY;
     SDL_SetRenderDrawColor(renderer, gray, gray, gray, 255);
     SDL_RenderFillRect(renderer, NULL);
 
@@ -1055,8 +1055,17 @@ void SetBrushFromMap(void)
     GID tile = GetMapTile(&map->map, _hover_tile_x, _hover_tile_y, _layer);
 
     int x, y;
-    Tileset * tile_set = GetGIDLocation(_tilesets, tile, &x, &y);
-    size_t i = tile_set - _tilesets;
+    GetGIDLocation(_tilesets, tile, &x, &y);
+
+    // Get the "index" of the current tileset.
+    int i = 0;
+    FOR_EACH_TILESET(ts) {
+        if ( ts == _active_tileset ) {
+            break;
+        }
+        i++;
+    }
+
     _tileset_views[i].selection_box.min_x = x;
     _tileset_views[i].selection_box.min_y = y;
     _tileset_views[i].selection_box.max_x = x;
@@ -1069,7 +1078,7 @@ bool IsLayerKey(SDL_Scancode scancode, int * out)
     if ( scancode < SDL_SCANCODE_1 || scancode > SDL_SCANCODE_8 ) return false;
     if ( scancode - SDL_SCANCODE_1 > map->map.num_layers ) return false;
 
-    *out = scancode - SDL_SCANCODE_1;
+    *out = (int)(scancode - SDL_SCANCODE_1);
     return true;
 }
 
@@ -1147,11 +1156,11 @@ void ChangeMapSize(int dx, int dy)
 
     RegisterMapSizeChange(map, dx, dy);
 
-    int old_w = map->map.width;
-    int old_h = map->map.height;
-    int new_w = old_w + dx;
-    int new_h = old_h + dy;
-    size_t size = new_w * new_h * sizeof(GID);
+    Uint16 old_w = map->map.width;
+    Uint16 old_h = map->map.height;
+    Uint16 new_w = (Uint16)((int)old_w + dx);
+    Uint16 new_h = (Uint16)((int)old_h + dy);
+    size_t size = (size_t)(new_w * new_h) * sizeof(GID);
 
     int source_w = new_w;
     int source_h = new_h;
@@ -1354,8 +1363,8 @@ static bool S_Main_Respond(const SDL_Event * event)
                 float x, y;
                 SDL_GetMouseState(&x, &y);
                 SDL_Point pt = {
-                    .x = x - mouse_view->viewport.x,
-                    .y = y - mouse_view->viewport.y
+                    .x = (int)x - mouse_view->viewport.x,
+                    .y = (int)y - mouse_view->viewport.y
                 };
 
                 if ( event->wheel.y > 0 ) {
@@ -1430,7 +1439,7 @@ void RenderPaletteView(void)
     // TODO: incorporate border and background
     RenderBorder(view->viewport);
     SDL_FRect vp_frect = RectIntToFloat(&view->viewport);
-    int gray = LT_GRAY;
+    Uint8 gray = LT_GRAY;
     SDL_SetRenderDrawColor(renderer, gray, gray, gray, 255);
     SDL_RenderFillRect(renderer, &vp_frect);
 
@@ -1449,7 +1458,7 @@ void RenderHUD(void)
 {
     SDL_Rect * vp = &map->view.viewport;
 
-    int top_text_y = map->view.viewport.y - FontHeight(_font) * 1.5;
+    int top_text_y = (int)(map->view.viewport.y - FontHeight(_font) * 1.5);
     int bottom_text_y = vp->y + vp->h + FontHeight(_font) / 2;
 
     // Top Map View
@@ -1487,7 +1496,7 @@ void RenderHUD(void)
             SDL_SetRenderDrawColor(renderer, 255, 255, 255, 255);
         }
 
-        x += RenderChar(_font, vp->x + x, bottom_text_y, '1' + i) + _font->scale;
+        x += RenderChar(_font, vp->x + x, bottom_text_y, '1' + i) + (int)_font->scale;
     }
 
     SDL_SetRenderDrawColor(renderer, 255, 255, 255, 255);
@@ -1506,7 +1515,7 @@ void RenderHUD(void)
     vp = &_tileset_views[0].viewport;
 
     SDL_SetRenderDrawColor(renderer, 255, 255, 255, 255);
-    RenderString(_font, vp->x, vp->y - FontHeight(_font) * 1.5,
+    RenderString(_font, vp->x, vp->y - (int)(FontHeight(_font) * 1.5),
                  "%s", _active_tileset->id);
 
     GetZoomString(_tileset_views[_tile_set_index].zoom_index, buf);

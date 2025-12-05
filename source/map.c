@@ -65,7 +65,8 @@ Compress(Uint16 * data, size_t data_size, size_t * compressed_size)
         }
     }
 
-    *compressed_size = sizeof(Uint64) + sizeof(Uint16) * (dest - dest_start);
+    unsigned long n = (unsigned long)(dest - dest_start);
+    *compressed_size = sizeof(Uint64) + sizeof(Uint16) * n;
 
     // Compression didn't save space, just return the original data.
     if ( *compressed_size >= data_size ) {
@@ -128,7 +129,7 @@ bool SaveMap(Map * map, const char * path)
     }
 
     // Leave room for the header and info table.
-    size_t skip = 0;
+    long skip = 0;
     skip += sizeof(MapHeader);
     skip += sizeof(LayerInfo) * map->num_layers;
     fseek(file, skip, SEEK_SET);
@@ -233,7 +234,7 @@ bool LoadMap(Map * map, const char * path)
     return true;
 }
 
-bool CreateMap(const char * path, int w, int h, int num_layers)
+bool CreateMap(const char * path, Uint16 w, Uint16 h, Uint8 num_layers)
 {
     FILE * file = fopen(path, "rb");
     if ( file != NULL ) {
@@ -338,7 +339,7 @@ void AddTileset(Tileset ** list, Tileset * tileset)
 
     tileset->prev = tail;
     tail->next = tileset;
-    tileset->first_gid = tail->first_gid + tail->num_tiles;
+    tileset->first_gid = tail->first_gid + (GID)tail->num_tiles;
 }
 
 Tileset * LoadTilesets(SDL_Renderer * renderer,
@@ -422,4 +423,26 @@ void RenderTile(SDL_Renderer * renderer,
     };
 
     SDL_RenderTexture(renderer, ts->texture, &source, dest);
+}
+
+void RenderTile2(SDL_Renderer * renderer,
+                 GID gid,
+                 SDL_Texture * tileset,
+                 int tile_size,
+                 const SDL_FRect * dest)
+{
+    int tiles_per_row = tileset->w / tile_size;
+
+    int n = gid - 1;
+    int x = n % tiles_per_row;
+    int y = n / tiles_per_row;
+
+    SDL_FRect source = {
+        .x = x * tile_size,
+        .y = y * tile_size,
+        .w = tile_size,
+        .h = tile_size
+    };
+
+    SDL_RenderTexture(renderer, tileset, &source, dest);
 }

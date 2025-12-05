@@ -48,7 +48,7 @@ extern SDL_Renderer * renderer;
 extern int is_fullscreen;
 extern float dt;
 extern int sound_on; // Set to false to mute all sound.
-extern int volume;
+extern Sint8 volume;
 
 // VIDEO
 
@@ -57,7 +57,7 @@ void ToggleFullscreen(void);
 void LimitFrameRate(float fps);
 SDL_Texture * LoadTextureFromBMP(const char * path);
 void SetColor(SDL_Color color);
-void SetGray(int value);
+void SetGray(Uint8 value);
 
 // SPRITES
 
@@ -78,8 +78,8 @@ void RenderAnimatedSprite(const AnimState * anim, int x, int y);
 
 // FONT
 
-Font * LoadFontFromData(unsigned char * data, size_t data_size, int cell_w, int cell_h);
-Font * LoadFontFromBMP(const char * bmp_path, int cell_w, int cell_h);
+Font * LoadFontFromData(unsigned char * data, size_t data_size, Uint8 cell_w, Uint8 cell_h);
+Font * LoadFontFromBMP(const char * bmp_path, Uint8 cell_w, Uint8 cell_h);
 int RenderChar(Font * font, int x, int y, int ch);
 int RenderString(Font * font, int x, int y, const char * fmt, ...);
 int StringWidth(Font * font, const char * fmt, ...);
@@ -92,7 +92,7 @@ int CharWidth(Font * font, char ch);
 void InitSound(void);
 
 /// Range: 1-15. Default: 8.
-void SetVolume(unsigned value);
+void SetVolume(Sint8 value);
 
 /// Play frequency 800 Hz for 0.2 seconds.
 void Beep(void);
