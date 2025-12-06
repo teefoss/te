@@ -5,6 +5,8 @@
 //
 
 #include "av.h"
+#include <ctype.h>
+#include <stdio.h>
 #include <stdlib.h>
 #include <errno.h>
 
@@ -187,17 +189,17 @@ int
 RenderChar(Font * font, int x, int y, int ch)
 {
     SDL_FRect src = {
-        .x = (ch % CELL_COLS) * font->cell_w,
-        .y = (ch / CELL_COLS) * font->cell_h,
-        .w = font->ch_widths[ch],
-        .h = font->cell_h,
+        .x = (float)((ch % CELL_COLS) * font->cell_w),
+        .y = (float)((ch / CELL_COLS) * font->cell_h),
+        .w = (float)(font->ch_widths[ch]),
+        .h = (float)(font->cell_h),
     };
 
     SDL_FRect dst = {
-        .x = x,
-        .y = y,
-        .w = font->ch_widths[ch] * font->scale,
-        .h = font->cell_h * font->scale,
+        .x = (float)(x),
+        .y = (float)(y),
+        .w = (float)(font->ch_widths[ch] * font->scale),
+        .h = (float)(font->cell_h * font->scale),
     };
 
     Uint8 r, g, b;
@@ -267,7 +269,9 @@ StringWidth(Font * font, const char * fmt, ...)
     return (int)(width * font->scale);
 }
 
+#ifdef __APPLE__
 #pragma mark - SOUND
+#endif
 
 static const SDL_AudioSpec spec = {
     .format = SDL_AUDIO_S8,
@@ -456,8 +460,10 @@ void Play(const char * string, ...)
                         break;
                     case 'N': {
                         int number = (int)strtol(str, (char **)&str, 10);
-                        if ( number < 0 || number > 84 )
-                            return PlayError("bad note number", (int)(str - string));
+                        if ( number < 0 || number > 84 ){
+                            PlayError("bad note number", (int)(str - string));
+                            return;
+                        }
                         if ( number > 0 )
                             note = number;
                         break;
@@ -484,8 +490,10 @@ void Play(const char * string, ...)
                 // get note value:
                 if ( c != 'N' ) {
                     int number = (int)strtol(str, (char **)&str, 10);
-                    if ( number < 0 || number > 64 )
-                        return PlayError("bad note value", (int)(str - string));
+                    if ( number < 0 || number > 64 ){
+                        PlayError("bad note value", (int)(str - string));
+                        return;
+                    }
                     if ( number > 0 )
                         d = number;
                 }
@@ -516,16 +524,20 @@ void Play(const char * string, ...)
 
             case 'T':
                 bmp = (int)strtol(str, (char **)&str, 10);
-                if ( bmp == 0 )
-                    return PlayError("bad tempo", (int)(str - string));
+                if ( bmp == 0 ){
+                    PlayError("bad tempo", (int)(str - string));
+                    return;
+                }
 #if PLAY_DEBUG
                 printf("set tempo to %d\n", bmp);
 #endif
                 break;
 
             case 'O':
-                if ( *str < '0' || *str > '6' )
-                    return PlayError("bad octave", (int)(str - string));
+                if ( *str < '0' || *str > '6' ){
+                    PlayError("bad octave", (int)(str - string));
+                    return;
+                }
                 oct = (int)strtol(str, (char **)&str, 10);
 #if PLAY_DEBUG
                 printf("set octave to %d\n", oct);
@@ -534,8 +546,10 @@ void Play(const char * string, ...)
 
             case 'L':
                 len = (int)strtol(str, (char **)&str, 10);
-                if ( len < 1 || len > 64 )
-                    return PlayError("bad length", (int)(str - string));
+                if ( len < 1 || len > 64 ){
+                    PlayError("bad length", (int)(str - string));
+                    return;
+                }
 #if PLAY_DEBUG
                 printf("set length to %d\n", len);
 #endif
@@ -566,8 +580,8 @@ void Play(const char * string, ...)
                         //                    case 'B': background = 1; break; // TODO: ?
                         //                    case 'F': background = 0; break;
                     default:
-                        return PlayError("bad music option", (int)(str - string));
-                        break;
+                        PlayError("bad music option", (int)(str - string));
+                        return;
                 }
                 break;
             }
@@ -579,7 +593,9 @@ void Play(const char * string, ...)
 
 #undef PLAY_DEBUG
 
+#ifdef __APPLE__
 #pragma mark - SPRITES -
+#endif
 
 #define MAX_TEXTURE_ENTRIES 1024
 
@@ -750,7 +766,7 @@ AdvanceCel(AnimState * anim, int num_cels)
 }
 
 void
-UpdateAnimation(AnimState * anim, float dt)
+UpdateAnimation(AnimState * anim, float time_delta)
 {
     Sprite * spr = anim->sprite;
 
@@ -758,7 +774,7 @@ UpdateAnimation(AnimState * anim, float dt)
         return; // Non-animating sprite.
     }
 
-    anim->timer -= dt;
+    anim->timer -= time_delta;
     if ( anim->timer <= 0.0f ) {
         anim->timer = spr->cel_dur; // Reset timer
         AdvanceCel(anim, spr->num_cels);
@@ -771,12 +787,17 @@ _RenderSprite(Sprite * spr, int cel, SDL_FlipMode flip, int x, int y)
     if ( spr == NULL ) return;
 
     SDL_FRect src;
-    src.x = spr->location.x + cel * spr->location.w;
-    src.y = spr->location.y;
-    src.w = spr->location.w;
-    src.h = spr->location.h;
+    src.x = (float)(spr->location.x + cel * spr->location.w);
+    src.y = (float)(spr->location.y);
+    src.w = (float)(spr->location.w);
+    src.h = (float)(spr->location.h);
 
-    SDL_FRect dst = { x, y, spr->location.w, spr->location.h };
+    SDL_FRect dst = {
+        (float)(x),
+        (float)(y),
+        (float)(spr->location.w),
+        (float)(spr->location.h)
+    };
     SDL_RenderTextureRotated(renderer, spr->texture, &src, &dst, 0, NULL, flip);
 }
 
@@ -795,7 +816,9 @@ void RenderSprite(int num, int cel, int x, int y)
     _RenderSprite(FindSprite(num), cel, SDL_FLIP_NONE, x, y);
 }
 
+#ifdef __APPLE__
 #pragma mark - TIME -
+#endif
 
 static Uint64 last;
 float dt;

@@ -6,6 +6,7 @@
 //
 
 #include <stdlib.h>
+#include <stdio.h>
 #include <math.h>
 #include "editor.h"
 #include "av.h"
@@ -17,7 +18,12 @@ SDL_Rect RectFloatToInt(const SDL_FRect * r)
 
 SDL_FRect RectIntToFloat(const SDL_Rect * r)
 {
-    return (SDL_FRect){ r->x, r->y, r->w, r->h };
+    return (SDL_FRect){
+        (float)(r->x),
+        (float)(r->y),
+        (float)(r->w),
+        (float)(r->h)
+    };
 }
 
 void ConvertAsepriteFile(const char * base, int scale)

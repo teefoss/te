@@ -151,7 +151,7 @@ void ClampViewOrigin(View * v)
             if ( v->origin.x < 0 ) {
                 v->origin.x = 0;
             } else if ( v->origin.x > max_x ) {
-                v->origin.x = max_x;
+                v->origin.x = (float)(max_x);
             }
         }
     }
@@ -165,7 +165,7 @@ void ClampViewOrigin(View * v)
             if ( v->origin.y < 0 ) {
                 v->origin.y = 0;
             } else if ( v->origin.y > max_y ) {
-                v->origin.y = max_y;
+                v->origin.y = (float)(max_y);
             }
         }
     }

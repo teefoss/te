@@ -8,6 +8,8 @@
 #include "cursor.h"
 #include "editor.h"
 
+#include <stdio.h>
+
 static SDL_Cursor * cursors[CURSOR_COUNT];
 static Cursor current = CURSOR_SYSTEM;
 

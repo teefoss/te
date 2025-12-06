@@ -12,6 +12,7 @@
 #include "config.h"
 
 #include <stdlib.h>
+#include <stdio.h>
 #include <SDL3/SDL.h>
 
 static EditorMap * map_head; // Singly linked list
@@ -117,7 +118,7 @@ void SetCurrentMap(const char * path)
     }
 }
 
-static void EditorStatePerform(EditorMap * map, ConfigFunc func)
+static void EditorStatePerform(EditorMap * editor_map, ConfigFunc func)
 {
     if ( !SDL_CreateDirectory(".state") ) {
         LogError("SDL_CreateDirectory failed: %s", SDL_GetError());
@@ -125,12 +126,12 @@ static void EditorStatePerform(EditorMap * map, ConfigFunc func)
     }
 
     char path[1024] = { 0 };
-    snprintf(path, sizeof(path), ".state/%s_state.txt", map->path);
+    snprintf(path, sizeof(path), ".state/%s_state.txt", editor_map->path);
 
     Option options[] = {
-        { CONFIG_FLOAT,     "x_position",   &map->view.origin.x },
-        { CONFIG_FLOAT,     "y_position",   &map->view.origin.y },
-        { CONFIG_DEC_INT,   "zoom",         &map->view.zoom_index },
+        { CONFIG_FLOAT,     "x_position",   &editor_map->view.origin.x },
+        { CONFIG_FLOAT,     "y_position",   &editor_map->view.origin.y },
+        { CONFIG_DEC_INT,   "zoom",         &editor_map->view.zoom_index },
         { CONFIG_NULL },
     };
 

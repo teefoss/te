@@ -19,6 +19,7 @@
 
 #include <errno.h>
 #include <stdlib.h>
+#include <stdio.h>
 
 #define RLE_TAG 0xABCD
 
@@ -416,10 +417,10 @@ void RenderTile(SDL_Renderer * renderer,
     Tileset * ts = GetGIDLocation(tilesets, gid, &x, &y);
 
     SDL_FRect source = {
-        x * ts->tile_size,
-        y * ts->tile_size,
-        ts->tile_size,
-        ts->tile_size
+        (float)(x * ts->tile_size),
+        (float)(y * ts->tile_size),
+        (float)(ts->tile_size),
+        (float)(ts->tile_size)
     };
 
     SDL_RenderTexture(renderer, ts->texture, &source, dest);
@@ -438,10 +439,10 @@ void RenderTile2(SDL_Renderer * renderer,
     int y = n / tiles_per_row;
 
     SDL_FRect source = {
-        .x = x * tile_size,
-        .y = y * tile_size,
-        .w = tile_size,
-        .h = tile_size
+        .x = (float)(x * tile_size),
+        .y = (float)(y * tile_size),
+        .w = (float)(tile_size),
+        .h = (float)(tile_size)
     };
 
     SDL_RenderTexture(renderer, tileset, &source, dest);
