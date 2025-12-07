@@ -6,4 +6,5 @@ graphics/*
 *.teproj
 .state/
 assets/
+external/
 te

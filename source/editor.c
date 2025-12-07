@@ -51,6 +51,7 @@
 #include "zoom.h"
 
 #include <stdarg.h>
+#include <stdio.h>
 #include <stdlib.h>
 #include <errno.h>
 #include <SDL3/SDL.h>
@@ -90,7 +91,9 @@ typedef struct {
     int allocated_slots;
 } Clipboard;
 
+#ifdef __APPLE__
 #pragma mark - PROTOTYPES
+#endif
 
 static bool S_DragMap_Respond(const SDL_Event *);
 static void S_DragMap_Update(void);
@@ -110,7 +113,9 @@ static void S_Main_Render(void);
 
 void MapNextItem(int direction);
 
+#ifdef __APPLE__
 #pragma mark - DATA
+#endif
 
 // Holy global state, batman
 
@@ -158,7 +163,9 @@ static int          _fixed_y;
 static int          _drag_x; // Current drag tile
 static int          _drag_y;
 
+#ifdef __APPLE__
 #pragma mark - STATE
+#endif
 
 State * _state;
 
@@ -230,7 +237,9 @@ static const char * tool_names[TOOL_COUNT] = {
     [TOOL_RECT] = "Rect",
 };
 
+#ifdef __APPLE__
 #pragma mark - FUNCTIONS
+#endif
 
 void SetStatus(const char * fmt, ...)
 {
@@ -384,9 +393,9 @@ static void InitViews(void)
 static SDL_Color Color24ToSDL(int color24)
 {
     SDL_Color color;
-    color.r = (color24 & 0xFF0000) >> 16;
-    color.g = (color24 & 0x00FF00) >> 8;
-    color.b = (color24 & 0x0000FF);
+    color.r = (Uint8)((color24 & 0xFF0000) >> 16);
+    color.g = (Uint8)((color24 & 0x00FF00) >> 8);
+    color.b = (Uint8)((color24 & 0x0000FF));
     color.a = 255;
 
     return color;
@@ -613,7 +622,7 @@ static void RenderSelectionBox(const View * view, int tx1, int ty1, int tx2, int
 
     SDL_FRect br_rect = GetTileUnionRect(view, tx1, ty1, tx2, ty2);
 
-    float zoom = (int)GetScale(view->zoom_index);
+    float zoom = GetScale(view->zoom_index);
     float thickness = zoom;
     float dash_len = (_tile_size / 3) * zoom;
     float dash_gap = dash_len;
@@ -662,10 +671,10 @@ static void RenderBrush(void)
     }
 
     SDL_FRect src = {
-        .x = brush->min_x * _tile_size,
-        .y = brush->min_y * _tile_size,
-        .w = w * _tile_size,
-        .h = h * _tile_size
+        .x = (float)(brush->min_x * _tile_size),
+        .y = (float)(brush->min_y * _tile_size),
+        .w = (float)(w * _tile_size),
+        .h = (float)(h * _tile_size)
     };
 
     float scale = GetScale(map->view.zoom_index);
@@ -711,14 +720,19 @@ static void RenderClipboard(void)
 
 void RenderBorder(SDL_Rect r)
 {
-    SDL_FRect border = { r.x - 1, r.y - 1, r.w + 2, r.h + 2 };
+    SDL_FRect border = {
+        (float)(r.x - 1),
+        (float)(r.y - 1),
+        (float)(r.w + 2),
+        (float)(r.h + 2)
+    };
     Uint8 gray = LT_GRAY;
     SDL_SetRenderDrawColor(renderer, gray, gray, gray, 255);
     SDL_RenderRect(renderer, &border);
-    border.x -= 1;
-    border.y -= 1;
-    border.w += 2;
-    border.h += 2;
+    border.x -= 1.0f;
+    border.y -= 1.0f;
+    border.w += 2.0f;
+    border.h += 2.0f;
     SDL_RenderRect(renderer, &border);
 }
 
@@ -1325,10 +1339,8 @@ static bool S_Main_Respond(const SDL_Event * event)
                 return RespondToCommand(event->key.scancode);
             } else if ( mods & SDL_KMOD_SHIFT ) {
                 return RespondToKey(&event->key, &_tileset_views[_tile_set_index]);
-            } else {
-                return RespondToKey(&event->key, &map->view);
             }
-            return false;
+            return RespondToKey(&event->key, &map->view);
         }
 
         case SDL_EVENT_MOUSE_BUTTON_DOWN:
@@ -1602,7 +1614,9 @@ void S_Main_Render(void)
     SDL_SetRenderViewport(renderer, NULL);
 }
 
+#ifdef __APPLE__
 #pragma mark -
+#endif
 
 static bool _is_running = true;
 

@@ -6,6 +6,7 @@
 //
 
 #include "editor.h"
+#include <stdio.h>
 #include <limits.h>
 
 static Change current_change; // Current in-progress action
