@@ -460,7 +460,8 @@ void Play(const char * string, ...)
                         break;
                     case 'N': {
                         int number = (int)strtol(str, (char **)&str, 10);
-                        if ( number < 0 || number > 84 ){
+                        if ( number < 0 || number > 84 )
+{
                             PlayError("bad note number", (int)(str - string));
                             return;
                         }
@@ -490,7 +491,8 @@ void Play(const char * string, ...)
                 // get note value:
                 if ( c != 'N' ) {
                     int number = (int)strtol(str, (char **)&str, 10);
-                    if ( number < 0 || number > 64 ){
+                    if ( number < 0 || number > 64 )
+{
                         PlayError("bad note value", (int)(str - string));
                         return;
                     }
@@ -524,7 +526,8 @@ void Play(const char * string, ...)
 
             case 'T':
                 bmp = (int)strtol(str, (char **)&str, 10);
-                if ( bmp == 0 ){
+                if ( bmp == 0 )
+{
                     PlayError("bad tempo", (int)(str - string));
                     return;
                 }
@@ -534,7 +537,8 @@ void Play(const char * string, ...)
                 break;
 
             case 'O':
-                if ( *str < '0' || *str > '6' ){
+                if ( *str < '0' || *str > '6' )
+{
                     PlayError("bad octave", (int)(str - string));
                     return;
                 }
@@ -546,7 +550,8 @@ void Play(const char * string, ...)
 
             case 'L':
                 len = (int)strtol(str, (char **)&str, 10);
-                if ( len < 1 || len > 64 ){
+                if ( len < 1 || len > 64 )
+{
                     PlayError("bad length", (int)(str - string));
                     return;
                 }

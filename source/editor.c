@@ -542,12 +542,6 @@ static void InitEditor(void)
     InitCursors();
     InitViews();
 
-    // Load Tile Indicator for current tile size.
-
-    char indicator_path[256] = { 0 };
-    snprintf(indicator_path, sizeof(indicator_path),
-             "assets/indicator%d.bmp", _tile_size);
-
     // Load Config or default values.
 
     SelectDefaultCurrentMap();
@@ -1022,6 +1016,13 @@ static bool DoLeftButtonDown(void)
                     }
                 }
                 break;
+
+            case TOOL_ERASE:
+                BeginChange(map, CHANGE_SET_TILES);
+
+                EndChange(map);
+                break;
+
             case TOOL_FILL: {
                 GID old = GetMapTile(&map->map, tx, ty, _layer);
                 SelectionBox * brush = CurrentBrush();

@@ -1,3 +1,5 @@
+*** Currently in an alpha state ***
+
 [te] - Tile Editor
 by Tom Foster, November 2025
 

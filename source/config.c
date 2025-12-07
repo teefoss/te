@@ -33,15 +33,6 @@ CaseCompare(const char * a, const char * b, size_t n)
 }
 
 static const char * bool_str[] = { "no", "yes" };
-//static const char * type_str[] = {
-//    [CONFIG_BOOL] = "boolean",
-//    [CONFIG_OCT_INT] = "octal integer",
-//    [CONFIG_DEC_INT] = "decimal integer",
-//    [CONFIG_HEX_INT] = "hexadecimal integer",
-//    [CONFIG_STR] = "string",
-//    [CONFIG_FLOAT] = "float",
-//    [CONFIG_DOUBLE] = "double",
-//};
 
 static const Option *
 FindOption(const Option * options, const char * name)
@@ -128,10 +119,8 @@ LoadConfig(const Option * options, const char * path)
     }
 
     char line[512] = { 0 };
-//    int line_num = 0;
 
     while ( fgets(line, sizeof(line), file) != NULL ) {
-//        line_num++;
 
         char key[MAX_KEY_LEN] = { 0 };
         char val[MAX_VAL_LEN] = { 0 };

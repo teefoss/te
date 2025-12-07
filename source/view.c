@@ -11,15 +11,6 @@
 #include "zoom.h"
 #include "misc.h"
 
-View InitView(int x, int y, int w, int h)
-{
-    return (View){
-        .viewport = { x, y, w, h },
-        .origin = { 0, 0 },
-        .zoom_index = DefaultZoom()
-    };
-}
-
 SDL_FRect GetTileRect(const View * view, int tile_x, int tile_y, int tile_size)
 {
     float scale = GetScale(view->zoom_index);

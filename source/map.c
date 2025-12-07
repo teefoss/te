@@ -45,7 +45,7 @@ Compress(Uint16 * data, size_t data_size, size_t * compressed_size)
     Uint16 * source = data;
     Uint16 * source_end = data + (data_size + 1) / sizeof(Uint16);
 
-    while ( source < source_end ) {
+    do {
         Uint16 count = 1;
         Uint16 value = *source++;
 
@@ -64,7 +64,7 @@ Compress(Uint16 * data, size_t data_size, size_t * compressed_size)
                 *dest++ = value;
             }
         }
-    }
+    } while ( source < source_end );
 
     unsigned long n = (unsigned long)(dest - dest_start);
     *compressed_size = sizeof(Uint64) + sizeof(Uint16) * n;
@@ -122,7 +122,7 @@ void FreeMap(Map * map)
 
 bool SaveMap(Map * map, const char * path)
 {
-    FILE * file = fopen(path, "w");
+    FILE * file = fopen(path, "wb");
     if ( file == NULL ) {
         fprintf(stderr,
                 "%s: failed to create file at path '%s'\n", __func__, path);
@@ -182,7 +182,7 @@ bool LoadMap(Map * map, const char * path)
     // Free previously loaded map.
     FreeMap(map);
 
-    FILE * file = fopen(path, "r");
+    FILE * file = fopen(path, "rb");
     if ( file == NULL ) {
         // TODO: error
         return false;

@@ -16,9 +16,10 @@ static Cursor current = CURSOR_SYSTEM;
 static SDL_Cursor * LoadCursor(const char * base, int hot_x, int hot_y)
 {
     char path[256] = { 0 };
-    snprintf(path, sizeof(path), "assets/cursors/%s.bmp", base);
+    snprintf(path, sizeof(path), "editor_assets/cursors/%s.bmp", base);
     SDL_Surface * surface = SDL_LoadBMP(path);
     if ( surface == NULL ) {
+        fprintf(stderr, "failed to load cursor bmp at %s\n", path);
         return NULL;
     }
 

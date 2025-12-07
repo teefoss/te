@@ -33,8 +33,6 @@ typedef struct view {
     bool has_selection;
 } View;
 
-View InitView(int x, int y, int w, int h);
-
 SDL_FRect GetVisibleRect(const View * v);
 bool GetMouseTile(const View * view, int * x, int * y, int tile_size);
 SDL_FRect GetTileRect(const View * view, int tile_x, int tile_y, int tile_size);
