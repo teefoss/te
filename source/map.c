@@ -259,9 +259,9 @@ bool CreateMap(const char * path, Uint16 w, Uint16 h, Uint8 num_layers)
 
     // Init tiles
     for ( int i = 0; i < num_layers; i++ ) {
-        map.tiles[i] = calloc(w * h, sizeof(*map.tiles[0]));
+        map.tiles[i] = SDL_calloc(w * h, sizeof(*map.tiles[0]));
         if ( map.tiles[i] == NULL ) {
-            fprintf(stderr, "%s: calloc failed: %s\n", __func__, strerror(errno));
+            fprintf(stderr, "%s: SDL_calloc failed\n", __func__);
             return false;
         }
     }
@@ -270,6 +270,33 @@ bool CreateMap(const char * path, Uint16 w, Uint16 h, Uint8 num_layers)
     FreeMap(&map);
 
     return true;
+}
+
+void ResizeMap(Map * map, Uint16 new_w, Uint16 new_h)
+{
+    size_t new_size = (size_t)(new_w * new_h) * sizeof(GID);
+
+    int w = SDL_min(map->width, new_w);
+    int h = SDL_min(map->height, new_h);
+
+    for ( int l = 0; l < map->num_layers; l++ ) {
+        GID * new_tiles = SDL_malloc(new_size);
+
+        // Copy old map tiles to new_tiles
+        for ( int y = 0; y < h; y++ ) {
+            for ( int x = 0; x < w; x++ ) {
+                GID gid = GetMapTile(map, x, y, l); // Accesses using current size.
+                new_tiles[y * new_w + x] = gid; // Set using new size.
+            }
+        }
+
+        // Replace pointer
+        SDL_free(map->tiles[l]);
+        map->tiles[l] = new_tiles;
+    }
+
+    map->width = new_w;
+    map->height = new_h;
 }
 
 bool IsValidPosition(const Map * map, int x, int y)

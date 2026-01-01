@@ -43,12 +43,12 @@ typedef struct {
     float scale;
 } Font;
 
-extern SDL_Window * window;
-extern SDL_Renderer * renderer;
-extern int is_fullscreen;
-extern float dt;
-extern int sound_on; // Set to false to mute all sound.
-extern Sint8 volume;
+extern SDL_Window * __window;
+extern SDL_Renderer * __renderer;
+extern int __is_fullscreen;
+extern float __dt;
+extern int __sound_on; // Set to false to mute all sound.
+extern Sint8 __volume;
 
 // VIDEO
 
@@ -56,8 +56,21 @@ void InitVideo(int w, int h, int scale);
 void ToggleFullscreen(void);
 void LimitFrameRate(float fps);
 SDL_Texture * LoadTextureFromBMP(const char * path);
-void SetColor(SDL_Color color);
-void SetGray(Uint8 value);
+
+static inline void SetColor(SDL_Color c)
+{
+    SDL_SetRenderDrawColor(__renderer, c.r, c.g, c.b, c.a);
+}
+
+static inline void SetGrayAlpha(Uint8 gray, Uint8 alpha)
+{
+    SDL_SetRenderDrawColor(__renderer, gray, gray, gray, alpha);
+}
+
+static inline void SetGray(Uint8 gray)
+{
+    SetGrayAlpha(gray, 255);
+}
 
 // SPRITES
 

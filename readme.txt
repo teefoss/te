@@ -126,11 +126,16 @@ Space-LMB-Drag          Scroll
 Tab                     Toggle Show Brush/Clipboard
 F1                      Toggle Grid Lines
 F2                      Toggle Screen Lines
+F3                      Focus Screen
 P                       Switch to Paint Tool
 F                       Switch to Fill Tool
 L                       Switch to Line Tool
 R                       Switch to Rect Tool
 E                       Switch to Erase Tool
+Alt-W,A,S,D             Change Focused Screen
+Alt--/+ (minus, plus)   Decrease/Increase Unfocused Screens' Opacity
+Left/Right              Decrease/Increase Map Width
+Down/Up                 Decrease/Increase Map Height
 Command-S               Save Map
 Command-C               Copy Selected Region
 Command-X               Cut Selected Region
@@ -143,19 +148,6 @@ LMB                     Select Brush Tile
 Shift-LMB               Select Brush Region
 Shift-W,A,S,D           Scroll
 Space-LMB-Drag          Scroll
-Shift-- (minus)         Zoom Out
-Shift-+ (plus)          Zoom In
-[                       Previous Tileset
-]                       Next Tileset
-<                       Decrease Palette Size
->                       Increase Palette Size
-
------------------------ TODO
-
-?                       Focus Screen
-Alt-W,A,S,D             Change Highlighted Screen
-Left Arrow              Decrease Map Width
-Right Arrow             Increase Map Width
-Down Arrow              Decrease Map Height
-Up Arrow                Increase Map Height
-G                       Toggle grid in front / behind
+Shift--/+ (minus, plus) Zoom Out/In
+[, ]                    Previous/Next Tileset
+<, >                    Decrease/Increase Palette Size

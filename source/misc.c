@@ -5,11 +5,24 @@
 //  Created by Thomas Foster on 10/23/25.
 //
 
+#include <errno.h>
 #include <stdlib.h>
 #include <stdio.h>
 #include <math.h>
+
 #include "editor.h"
 #include "av.h"
+
+int StringToInt(const char * str, const char * err_str)
+{
+    int n = (int)strtol(str, NULL, 10);
+    if ( n == 0 && (errno == EINVAL || errno == ERANGE) ) {
+        fprintf(stderr, "%s\n", err_str);
+        exit(EXIT_FAILURE);
+    }
+
+    return n;
+}
 
 SDL_Rect RectFloatToInt(const SDL_FRect * r)
 {
@@ -39,6 +52,17 @@ void ConvertAsepriteFile(const char * base, int scale)
     if ( result == -1 || result == 127 ) {
         fprintf(stderr, "%s failed\n", __func__);
     }
+}
+
+SDL_Color Color24ToSDL(int color24)
+{
+    SDL_Color color;
+    color.r = (Uint8)((color24 & 0xFF0000) >> 16);
+    color.g = (Uint8)((color24 & 0x00FF00) >> 8);
+    color.b = (Uint8)((color24 & 0x0000FF));
+    color.a = 255;
+
+    return color;
 }
 
 static inline Uint8 clamp_channel(float v)
@@ -96,7 +120,7 @@ void DrawThickLine(float x1, float y1,
         }
         rect.w = x2 - x1;
         rect.h = thickness;
-        SDL_RenderFillRect(renderer, &rect);
+        SDL_RenderFillRect(__renderer, &rect);
     } else if (fabsf(x1 - x2) < 0.001f) {
         // Vertical
         //float x = x1;// - thickness;// * 0.5f;
@@ -108,7 +132,7 @@ void DrawThickLine(float x1, float y1,
         rect.y = y1;
         rect.w = thickness;
         rect.h = y2 - y1;
-        SDL_RenderFillRect(renderer, &rect);
+        SDL_RenderFillRect(__renderer, &rect);
     } else {
         // Should never happen for a rect,
     }
@@ -117,7 +141,7 @@ void DrawThickLine(float x1, float y1,
 void DrawThickRect(SDL_FRect rect, int thickness)
 {
     for ( int i = 0; i < thickness; i++ ) {
-        SDL_RenderRect(renderer, &rect);
+        SDL_RenderRect(__renderer, &rect);
         rect.x += 1.0f;
         rect.y += 1.0f;
         rect.w -= 2.0f;
@@ -205,4 +229,40 @@ void _LogError(const char * func, const char * format, ...)
     va_end(args);
 
     fprintf(stderr, "\n");
+}
+
+void BresenhamLine(int x1,
+                   int y1,
+                   int x2,
+                   int y2,
+                   void (* callback)(int x, int y, void * user),
+                   void * user)
+{
+    int dx = abs(x2 - x1);
+    int dy = -abs(y2 - y1);
+    int sx = x1 < x2 ? 1 : -1;
+    int sy = y1 < y2 ? 1 : -1;
+    int err = dx + dy;
+    int e2;
+
+    int x = x1;
+    int y = y1;
+
+    callback(x, y, user);
+
+    while ( x != x2 || y != y2 ) {
+        e2 = 2 * err;
+
+        if ( e2 >= dy ) {
+            err += dy;
+            x += sx;
+        }
+
+        if ( e2 <= dx ) {
+            err += dx;
+            y += sy;
+        }
+
+        callback(x, y, user);
+    }
 }

@@ -18,9 +18,9 @@ typedef struct sprite_node {
     struct sprite_node * next;
 } SpriteNode;
 
-SDL_Window * window;
-SDL_Renderer * renderer;
-int is_fullscreen;
+SDL_Window * __window;
+SDL_Renderer * __renderer;
+int __is_fullscreen;
 
 void
 InitVideo(int w, int h, int scale)
@@ -31,21 +31,21 @@ InitVideo(int w, int h, int scale)
         }
     }
 
-    SDL_WindowFlags flags = is_fullscreen ? SDL_WINDOW_FULLSCREEN : 0;
+    SDL_WindowFlags flags = __is_fullscreen ? SDL_WINDOW_FULLSCREEN : 0;
     flags |= SDL_WINDOW_RESIZABLE;
-    window = SDL_CreateWindow("", w * scale, h * scale, flags);
-    if ( window == NULL )
+    __window = SDL_CreateWindow("", w * scale, h * scale, flags);
+    if ( __window == NULL )
         goto error;
 
-    renderer = SDL_CreateRenderer(window, NULL);
-    if ( renderer == NULL )
+    __renderer = SDL_CreateRenderer(__window, NULL);
+    if ( __renderer == NULL )
         goto error;
 
-    SDL_SetRenderVSync(renderer, 1);
+    SDL_SetRenderVSync(__renderer, 1);
 
 //    SDL_SetRenderLogicalPresentation(
 //        renderer, w, h, SDL_LOGICAL_PRESENTATION_INTEGER_SCALE);
-    SDL_SetRenderDrawBlendMode(renderer, SDL_BLENDMODE_BLEND);
+    SDL_SetRenderDrawBlendMode(__renderer, SDL_BLENDMODE_BLEND);
 
     return;
 error:
@@ -59,7 +59,7 @@ LoadTextureFromBMP(const char * path)
     SDL_Surface * s = SDL_LoadBMP(path);
 
     if ( s != NULL ) {
-        t = SDL_CreateTextureFromSurface(renderer, s);
+        t = SDL_CreateTextureFromSurface(__renderer, s);
         SDL_DestroySurface(s);
     }
 
@@ -71,18 +71,8 @@ LoadTextureFromBMP(const char * path)
 void
 ToggleFullscreen(void)
 {
-    is_fullscreen = !is_fullscreen;
-    SDL_SetWindowFullscreen(window, is_fullscreen);
-}
-
-void SetColor(SDL_Color c)
-{
-    SDL_SetRenderDrawColor(renderer, c.r, c.g, c.b, c.a);
-}
-
-void SetGray(Uint8 value)
-{
-    SDL_SetRenderDrawColor(renderer, value, value, value, 255);
+    __is_fullscreen = !__is_fullscreen;
+    SDL_SetWindowFullscreen(__window, __is_fullscreen);
 }
 
 /// This functions destroys the surface.
@@ -126,7 +116,7 @@ _LoadFontFromSurface(SDL_Surface * surface, Uint8 cell_w, Uint8 cell_h)
     Uint32 key = SDL_MapSurfaceRGB(surface, 0, 0, 0);
     SDL_SetSurfaceColorKey(surface, true, key);
 
-    font->texture = SDL_CreateTextureFromSurface(renderer, surface);
+    font->texture = SDL_CreateTextureFromSurface(__renderer, surface);
     if ( font->texture == NULL ) goto error;
 
     SDL_DestroySurface(surface);
@@ -203,9 +193,9 @@ RenderChar(Font * font, int x, int y, int ch)
     };
 
     Uint8 r, g, b;
-    SDL_GetRenderDrawColor(renderer, &r, &g, &b, NULL);
+    SDL_GetRenderDrawColor(__renderer, &r, &g, &b, NULL);
     SDL_SetTextureColorMod(font->texture, r, g, b);
-    SDL_RenderTexture(renderer, font->texture, &src, &dst);
+    SDL_RenderTexture(__renderer, font->texture, &src, &dst);
 
     return (int)(font->ch_widths[ch] * font->scale);
 }
@@ -280,8 +270,8 @@ static const SDL_AudioSpec spec = {
 };
 static SDL_AudioStream * stream;
 
-Sint8 volume = 5;
-int sound_on = true;
+Sint8 __volume = 5;
+int __sound_on = true;
 
 static double NoteNumberToFrequency(int note_num)
 {
@@ -308,12 +298,12 @@ static double NoteNumberToFrequency(int note_num)
     while ( octaves_down-- )
         freq /= 2;
 
-    return (double)freq;
+    return (double)freq;// / 2.0;
 }
 
 void QueueSound(unsigned frequency, unsigned milliseconds)
 {
-    if ( !sound_on ) return;
+    if ( !__sound_on ) return;
 
     float period = (float)spec.freq / (float)frequency;
     int len = (int)((float)spec.freq * ((float)milliseconds / 1000.0f));
@@ -328,7 +318,7 @@ void QueueSound(unsigned frequency, unsigned milliseconds)
         if ( frequency == 0 ) {
             buf[i] = 0;
         } else {
-            buf[i] = (int)((float)i / period) % 2 ? volume : -volume;
+            buf[i] = (int)((float)i / period) % 2 ? __volume : -__volume;
         }
     }
 
@@ -361,7 +351,7 @@ void SetVolume(Sint8 value)
     if ( value > 15 ) value = 15;
     if ( value < 1 ) value = 1;
 
-    volume = value;
+    __volume = value;
 }
 
 void PlayFreq(unsigned frequency, unsigned milliseconds)
@@ -656,7 +646,7 @@ void LoadSpriteClip(int sprite_num,
         entry->surface = SDL_LoadBMP(bmp_path);
         if ( entry->surface == NULL ) goto sdl_error;
 
-        entry->texture = SDL_CreateTextureFromSurface(renderer, entry->surface);
+        entry->texture = SDL_CreateTextureFromSurface(__renderer, entry->surface);
         if ( entry->texture == NULL ) goto sdl_error;
 
         strncpy(entry->key, bmp_path, sizeof(entry->key));
@@ -803,7 +793,7 @@ _RenderSprite(Sprite * spr, int cel, SDL_FlipMode flip, int x, int y)
         (float)(spr->location.w),
         (float)(spr->location.h)
     };
-    SDL_RenderTextureRotated(renderer, spr->texture, &src, &dst, 0, NULL, flip);
+    SDL_RenderTextureRotated(__renderer, spr->texture, &src, &dst, 0, NULL, flip);
 }
 
 void RenderAnimatedSprite(const AnimState * anim, int x, int y)
@@ -826,7 +816,7 @@ void RenderSprite(int num, int cel, int x, int y)
 #endif
 
 static Uint64 last;
-float dt;
+float __dt;
 
 void
 InitTime(void)
@@ -846,6 +836,6 @@ LimitFrameRate(float fps)
     }
 
     last = SDL_GetTicks();
-    dt = 1.0f / fps;
+    __dt = 1.0f / fps;
 }
 

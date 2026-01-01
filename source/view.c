@@ -11,6 +11,36 @@
 #include "zoom.h"
 #include "misc.h"
 
+static float _ants_phase;
+
+static SDL_FRect GetTileUnionRect(const View * view,
+                                  int x1, int y1, int x2, int y2,
+                                  int tile_size)
+{
+    SDL_FRect t1 = GetTileRect(view, x1, y1, tile_size);
+    SDL_FRect t2 = GetTileRect(view, x2, y2, tile_size);
+    SDL_FRect rect;
+    SDL_GetRectUnionFloat(&t1, &t2, &rect);
+
+    return rect;
+}
+
+void UpdateAntsPhase(void)
+{
+    _ants_phase += 20.0f * __dt;
+}
+
+SDL_FRect GetViewRect(const View * view, int x, int y, int w, int h)
+{
+    float scale = GetScale(view->zoom_index);
+    return (SDL_FRect){
+        (x - view->origin.x) * scale,
+        (y - view->origin.y) * scale,
+        w * scale,
+        h * scale
+    };
+}
+
 SDL_FRect GetTileRect(const View * view, int tile_x, int tile_y, int tile_size)
 {
     float scale = GetScale(view->zoom_index);
@@ -92,12 +122,12 @@ void RenderViewBackground(const View * view, SDL_Color bg)
     int w = view->content_w;
     int h = view->content_h;
 
-    SDL_SetRenderDrawColor(renderer, bg.r, bg.g, bg.b, bg.a);
+    SDL_SetRenderDrawColor(__renderer, bg.r, bg.g, bg.b, bg.a);
 
     SDL_FPoint origin = ConvertToWindow(view, 0, 0);
     float scale = GetScale(view->zoom_index);
     SDL_FRect r = { origin.x, origin.y, w * scale, h * scale };
-    SDL_RenderFillRect(renderer, &r);
+    SDL_RenderFillRect(__renderer, &r);
 }
 
 void RenderGrid(const View * view,
@@ -112,15 +142,37 @@ void RenderGrid(const View * view,
     for ( int y = y_step; y < view->content_h; y += y_step ) {
         SDL_FPoint p1 = ConvertToWindow(view, 0, y);
         SDL_FPoint p2 = ConvertToWindow(view, view->content_w, y);
-        SDL_RenderLine(renderer, p1.x, p1.y, p2.x, p2.y);
+        SDL_RenderLine(__renderer, p1.x, p1.y, p2.x, p2.y);
     }
 
     // Vertical Lines
     for ( int x = x_step; x < view->content_w; x += x_step ) {
         SDL_FPoint p1 = ConvertToWindow(view, x, 0);
         SDL_FPoint p2 = ConvertToWindow(view, x, view->content_h);
-        SDL_RenderLine(renderer, p1.x, p1.y, p2.x, p2.y);
+        SDL_RenderLine(__renderer, p1.x, p1.y, p2.x, p2.y);
     }
+}
+
+void RenderViewSelectionBox(const View * view,
+                            int tx1, int ty1, int tx2, int ty2,
+                            int tile_size)
+{
+    SDL_Rect old_vp;
+    SDL_GetRenderViewport(__renderer, &old_vp);
+    SDL_SetRenderViewport(__renderer, &view->viewport);
+
+    SDL_SetRenderDrawColor(__renderer, 255, 0, 0, 255);
+
+    SDL_FRect br_rect = GetTileUnionRect(view, tx1, ty1, tx2, ty2, tile_size);
+
+    float zoom = GetScale(view->zoom_index);
+    float thickness = zoom;
+    float dash_len = (tile_size / 3) * zoom;
+    float dash_gap = dash_len;
+    DrawDashedRect(br_rect.x, br_rect.y, br_rect.w, br_rect.h,
+                   dash_len, dash_gap, thickness, _ants_phase);
+
+    SDL_SetRenderViewport(__renderer, &old_vp);
 }
 
 void ClampViewOrigin(View * v)
@@ -163,27 +215,18 @@ void ClampViewOrigin(View * v)
 }
 
 // TODO: change to use key up / key down
-void ScrollView(View * view)
+void ScrollView(View * view, int dx, int dy)
 {
     if ( SDL_GetModState() & CTRL_KEY ) {
         return;  // Don't respond to CTLR-S, etc.
     }
 
-    int scroll_dx = 0;
-    int scroll_dy = 0;
-
-    const bool * keys = SDL_GetKeyboardState(NULL);
-    if ( keys[SDL_SCANCODE_A] ) scroll_dx -= 1;
-    if ( keys[SDL_SCANCODE_D] ) scroll_dx += 1;
-    if ( keys[SDL_SCANCODE_W] ) scroll_dy -= 1;
-    if ( keys[SDL_SCANCODE_S] ) scroll_dy += 1;
-
     static float speed = 0.0f;
 
-    if ( scroll_dx || scroll_dy ) {
+    if ( dx || dy ) {
         float scale = GetScale(view->zoom_index);
-        speed += (900.0f / scale) * dt;
-        float max = (600.0f / scale) * dt;
+        speed += (900.0f / scale) * __dt;
+        float max = (600.0f / scale) * __dt;
         if ( speed > max )
             speed = max;
     } else {
@@ -191,8 +234,8 @@ void ScrollView(View * view)
         return;
     }
 
-    view->origin.x += speed * scroll_dx;
-    view->origin.y += speed * scroll_dy;
+    view->origin.x += speed * dx;
+    view->origin.y += speed * dy;
     ClampViewOrigin(view);
 }
 

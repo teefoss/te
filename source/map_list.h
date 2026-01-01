@@ -10,11 +10,11 @@
 
 #include "editor.h"
 
-extern EditorMap * map; // Map currently being edited.
-extern char current_map_name[MAP_NAME_LEN]; // Don't touch this!
+extern EditorMap * __map; // Map currently being edited.
+extern char __current_map_name[MAP_NAME_LEN]; // Don't touch this!
 
 void InitMapViews(void);
-// TODO: free maps
+void FreeMaps(void);
 
 void LoadMapState(void);
 void SaveMapState(void);
@@ -23,9 +23,9 @@ void SelectDefaultCurrentMap(void);
 void SetCurrentMap(const char * path);
 const char * CurrentMapPath(void);
 
+void SaveCurrentMap(void);
 void MapNextItem(int direction);
 void OpenEditorMap(const char * path, Uint16 width, Uint16 height, Uint8 num_layers);
-void SaveCurrentMap(void);
 void UpdateMapViews(const SDL_Rect * palette_viewport, int font_height, int tile_size);
 
 #endif /* map_list_h */

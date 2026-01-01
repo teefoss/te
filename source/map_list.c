@@ -18,8 +18,8 @@
 static EditorMap * map_head; // Singly linked list
 static EditorMap * map_tail;
 
-EditorMap * map; // being edited.
-char current_map_name[MAP_NAME_LEN];
+EditorMap * __map; // being edited.
+char __current_map_name[MAP_NAME_LEN];
 
 void OpenEditorMap(const char * path, Uint16 width, Uint16 height, Uint8 num_layers)
 {
@@ -48,38 +48,37 @@ void OpenEditorMap(const char * path, Uint16 width, Uint16 height, Uint8 num_lay
 
 void SaveCurrentMap(void)
 {
-    SaveMap(&map->map, map->path);
-    map->is_dirty = false;
-    SetStatus("Saved '%s'\n", map->path);
+    SaveMap(&__map->map, __map->path);
+    __map->is_dirty = false;
 }
 
 void MapNextItem(int direction)
 {
     SaveCurrentMap();
-    CancelChange(map);
+    CancelChange(__map);
 
-    if ( direction == 1 && map->next != NULL ) {
-        map = map->next;
-    } else if ( direction == -1 && map != map_head) {
+    if ( direction == 1 && __map->next != NULL ) {
+        __map = __map->next;
+    } else if ( direction == -1 && __map != map_head) {
         for ( EditorMap * m = map_head; m != NULL; m = m->next ) {
-            if ( m->next == map ) {
-                map = m;
+            if ( m->next == __map ) {
+                __map = m;
             }
         }
     }
 
-    strncpy(current_map_name, map->path, MAP_NAME_LEN);
+    strncpy(__current_map_name, __map->path, MAP_NAME_LEN);
 }
 
 const char * CurrentMapPath(void)
 {
-    return current_map_name;
+    return __current_map_name;
 }
 
 void UpdateMapViews(const SDL_Rect * palette_viewport, int font_height, int tile_size)
 {
     int ww, wh;
-    SDL_GetWindowSize(window, &ww, &wh);
+    SDL_GetWindowSize(__window, &ww, &wh);
 
     const SDL_Rect * vp = palette_viewport;
     for ( EditorMap * m = map_head; m != NULL; m = m->next ) {
@@ -103,16 +102,16 @@ void InitMapViews(void)
 
 void SelectDefaultCurrentMap(void)
 {
-    map = map_head;
-    strncpy(current_map_name, map->path, MAP_NAME_LEN);
+    __map = map_head;
+    strncpy(__current_map_name, __map->path, MAP_NAME_LEN);
 }
 
 void SetCurrentMap(const char * path)
 {
     for ( EditorMap * m = map_head; m != NULL; m = m->next ) {
         if ( STREQ(m->path, path) ) {
-            map = m;
-            strncpy(current_map_name, map->path, sizeof(current_map_name));
+            __map = m;
+            strncpy(__current_map_name, __map->path, sizeof(__current_map_name));
             return;
         }
     }
@@ -131,6 +130,9 @@ static void EditorStatePerform(EditorMap * editor_map, ConfigFunc func)
     Option options[] = {
         { CONFIG_FLOAT,     "x_position",   &editor_map->view.origin.x },
         { CONFIG_FLOAT,     "y_position",   &editor_map->view.origin.y },
+        { CONFIG_DEC_INT,   "screen_x",     &editor_map->screen_x },
+        { CONFIG_DEC_INT,   "screen_y",     &editor_map->screen_y },
+        { CONFIG_BOOL,      "focus_screen", &editor_map->focus_screen },
         { CONFIG_DEC_INT,   "zoom",         &editor_map->view.zoom_index },
         { CONFIG_NULL },
     };
@@ -149,5 +151,16 @@ void SaveMapState(void)
 {
     for ( EditorMap * m = map_head; m != NULL; m = m->next ) {
         EditorStatePerform(m, SaveConfig);
+    }
+}
+
+void FreeMaps(void)
+{
+    EditorMap * m = map_head;
+    while ( m != NULL ) {
+        EditorMap * temp = m;
+        m = m->next;
+        FreeMap(&temp->map);
+        SDL_free(temp);
     }
 }

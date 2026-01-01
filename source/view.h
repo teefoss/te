@@ -19,7 +19,7 @@ typedef struct {
     int min_y;
     int max_x;
     int max_y;
-} SelectionBox;
+} TileRegion;
 
 // A rectangular region that can be zoomed and scrolled.
 typedef struct view {
@@ -29,17 +29,25 @@ typedef struct view {
     int content_h;
     int zoom_index;
     void (* next_item)(int direction);
-    SelectionBox selection_box;
+    TileRegion selection_box;
     bool has_selection;
 } View;
 
+void UpdateAntsPhase(void); // Selection box marching ants.
 SDL_FRect GetVisibleRect(const View * v);
 bool GetMouseTile(const View * view, int * x, int * y, int tile_size);
 SDL_FRect GetTileRect(const View * view, int tile_x, int tile_y, int tile_size);
 void ClampViewOrigin(View * v);
-void ScrollView(View * view);
+void ScrollView(View * view, int dx, int dy);
+SDL_FRect GetViewRect(const View * view, int x, int y, int w, int h);
 
 void RenderViewBackground(const View * view, SDL_Color bg);
+
+/// Draw 'marching ants' box in `view`.
+void RenderViewSelectionBox(const View * view,
+                            int tx1, int ty1, int tx2, int ty2,
+                            int tile_size);
+
 void RenderGrid(const View * view,
                 SDL_Color bg,
                 float contrast_factor,

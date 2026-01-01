@@ -57,6 +57,8 @@ typedef struct {
 bool SaveMap(Map * map, const char * path);
 bool LoadMap(Map * map, const char * path);
 bool CreateMap(const char * path, Uint16 w, Uint16 h, Uint8 num_layers);
+void FreeMap(Map * map);
+void ResizeMap(Map * map, Uint16 new_w, Uint16 new_h);
 
 bool IsValidPosition(const Map * map, int x, int y);
 GID GetMapTile(const Map * map, int x, int y, int layer);

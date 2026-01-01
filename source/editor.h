@@ -31,16 +31,6 @@
 #define SWAP(a, b) \
     do { __typeof__(a) _tmp = (a); (a) = (b); (b) = _tmp; } while (0)
 
-typedef enum {
-    TOOL_ERASE, // E
-    TOOL_PAINT, // P
-    TOOL_FILL,  // F
-    TOOL_LINE,  // L
-    TOOL_RECT,  // R
-
-    TOOL_COUNT,
-} Tool;
-
 typedef struct {
     char name[128];
     bool is_visible;
@@ -58,13 +48,12 @@ typedef struct editor_map {
     Map map;
     View view;
     History history;
+    bool focus_screen;
     int screen_x; // Which screen being viewed.
     int screen_y;
     bool is_dirty;
 
     struct editor_map * next;
 } EditorMap;
-
-void SetStatus(const char * fmt, ...);
 
 #endif /* editor_h */

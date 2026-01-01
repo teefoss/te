@@ -9,6 +9,8 @@
 #include <stdio.h>
 #include <limits.h>
 
+// TODO: at exit, go through each undo and redo stack and SDL_free() any allocations
+
 static Change current_change; // Current in-progress action
 static bool recording = false;
 static int saved_redo_top; // When cancelling an action
@@ -26,6 +28,14 @@ void BeginChange(EditorMap * map, ChangeType type)
             changes->count = 0;
             changes->allocated = 16;
             changes->list = SDL_malloc((size_t)changes->allocated * sizeof(TileChange));
+            break;
+        }
+        case CHANGE_MAP_SIZE: {
+//            MapSizeChange * c = &current_change.map_size_changes;
+//            c->num_tiles = 0;
+//            if ( c->tiles ) {
+//                SDL_free(c->tiles);
+//            }
             break;
         }
         default:
@@ -98,11 +108,14 @@ void RegisterMapSizeChange(EditorMap * map, int dx, int dy)
     int start_x = 0;
     int start_y = 0;
 
+    // Only reductions in size require saving tiles.
     if ( dx < 0 ) {
+        // Save the left edge of the map
         save_w = -dx;
         save_h = map_h;
         start_x = map_w + dx;
     } else if ( dy < 0 ) {
+        // Save the bottom edge of the map
         save_w = map_w;
         save_h = -dy;
         start_y = map_h + dy;
@@ -111,7 +124,7 @@ void RegisterMapSizeChange(EditorMap * map, int dx, int dy)
         return;
     }
 
-    change->num_tiles = save_w * save_h;
+    change->num_tiles = save_w * save_h * map->map.num_layers;
 
     size_t size = (size_t)change->num_tiles * sizeof(*change->tiles);
     change->tiles = SDL_malloc(size);
@@ -124,6 +137,7 @@ void RegisterMapSizeChange(EditorMap * map, int dx, int dy)
                 t->x = x;
                 t->y = y;
                 t->gid = GetMapTile(&map->map, x, y, l);
+                t++;
             }
         }
     }
@@ -143,6 +157,8 @@ void EndChange(EditorMap * map)
                 return; // No changes
             }
             break;
+        case CHANGE_MAP_SIZE:
+            break;
         default:
             break;
     }
@@ -151,6 +167,23 @@ void EndChange(EditorMap * map)
     History * history = &map->history;
     if ( history->undo_top < MAX_HISTORY ) {
         history->undo_stack[history->undo_top++] = current_change;
+    }
+
+    switch ( current_change.type ) {
+
+        case CHANGE_SET_TILES:
+//            SDL_free(current_change.tile_changes.list);
+            break;
+        case CHANGE_MAP_SIZE:
+            break;
+    }
+}
+
+static void RestoreTiles(MapSizeChange * c, Map * m)
+{
+    for ( int i = 0; i < c->num_tiles; i++ ) {
+        Tile * t = &c->tiles[i];
+        SetMapTile(m, t->x, t->y, t->layer, t->gid);
     }
 }
 
@@ -174,7 +207,16 @@ void Undo(EditorMap * map)
             break;
 
         case CHANGE_MAP_SIZE: {
-//            MapSizeChange * c = &a.map_size_changes;
+            MapSizeChange * c = &a.map_size_changes;
+
+            int restored_w = m->width - c->dx;
+            int restored_h = m->height - c->dy;
+            ResizeMap(m, (Uint16)restored_w, (Uint16)restored_h);
+
+            if ( c->dx < 0 || c->dy < 0 ) {
+                RestoreTiles(c, m);
+            }
+
             break;
         }
 
@@ -202,6 +244,20 @@ void Redo(EditorMap * map)
                 m->tiles[c->layer][c->y * m->width + c->x] = c->new;
             }
             break;
+
+        case CHANGE_MAP_SIZE: {
+            MapSizeChange * c = &a.map_size_changes;
+
+            int new_w = m->width + c->dx;
+            int new_h = m->height + c->dy;
+            ResizeMap(m, (Uint16)new_w, (Uint16)new_h);
+
+            if ( c->dx > 0 || c->dy > 0 ) {
+                RestoreTiles(c, m);
+            }
+            break;
+        }
+
         default:
             break;
     }
