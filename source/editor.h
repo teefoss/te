@@ -42,16 +42,19 @@ typedef struct {
     void (* render)(void);
 } State;
 
-// TODO: any other per-map settings?
 typedef struct editor_map {
     char path[MAP_NAME_LEN];
     Map map;
     View view;
-    History history;
+
     bool focus_screen;
-    int screen_x; // Which screen being viewed.
+    int screen_x;
     int screen_y;
+    
     bool is_dirty;
+
+    ChangeStack undo;
+    ChangeStack redo;
 
     struct editor_map * next;
 } EditorMap;

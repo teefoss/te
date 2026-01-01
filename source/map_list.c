@@ -54,8 +54,11 @@ void SaveCurrentMap(void)
 
 void MapNextItem(int direction)
 {
+    if ( RecordingChange() ) {
+        return;
+    }
+    
     SaveCurrentMap();
-    CancelChange(__map);
 
     if ( direction == 1 && __map->next != NULL ) {
         __map = __map->next;
@@ -158,9 +161,12 @@ void FreeMaps(void)
 {
     EditorMap * m = map_head;
     while ( m != NULL ) {
+        FreeMap(&m->map);
+        FreeChangeStack(&m->undo);
+        FreeChangeStack(&m->redo);
+
         EditorMap * temp = m;
         m = m->next;
-        FreeMap(&temp->map);
         SDL_free(temp);
     }
 }

@@ -9,45 +9,109 @@
 #include <stdio.h>
 #include <limits.h>
 
-// TODO: at exit, go through each undo and redo stack and SDL_free() any allocations
-
 static Change current_change; // Current in-progress action
 static bool recording = false;
-static int saved_redo_top; // When cancelling an action
+
+bool RecordingChange(void)
+{
+    return recording;
+}
+
+static Change CopyChange(Change * change)
+{
+    Change copy = *change;
+
+    switch ( change->type ) {
+        case CHANGE_SET_TILES: {
+            TileChanges * src = &change->tile_changes;
+            TileChanges * dst = &copy.tile_changes;
+
+            size_t size = (size_t)src->count * sizeof(*src->list);
+            dst->list = SDL_malloc(size);
+            memcpy(dst->list, src->list, size);
+            break;
+        }
+        case CHANGE_MAP_SIZE: {
+            MapSizeChange * src = &change->map_size_changes;
+            MapSizeChange * dst = &copy.map_size_changes;
+
+            size_t size = (size_t)src->num_tiles * sizeof(*src->tiles);
+            dst->tiles = SDL_malloc(size);
+            memcpy(dst->tiles, src->tiles, size);
+            break;
+        }
+    }
+
+    return copy;
+}
+
+static void FreeChange(Change * change)
+{
+    switch ( change->type ) {
+        case CHANGE_SET_TILES:
+            SDL_free(change->tile_changes.list);
+            change->tile_changes.list = NULL;
+            change->tile_changes.count = 0;
+            change->tile_changes.allocated = 0;
+            break;
+        case CHANGE_MAP_SIZE:
+            SDL_free(change->map_size_changes.tiles);
+            change->map_size_changes.tiles = NULL;
+            change->map_size_changes.num_tiles = 0;
+            break;
+    }
+}
+
+void FreeChangeStack(ChangeStack * stack)
+{
+    for ( int i = 0; i < stack->count; i++ ) {
+        FreeChange(&stack->changes[i]);
+    }
+    stack->count = 0;
+}
+
+static void PushChange(ChangeStack * stack, Change * change)
+{
+    stack->changes[stack->count++] = CopyChange(change);
+}
+
+static Change PopChange(ChangeStack * stack)
+{
+    Change * top = &stack->changes[stack->count - 1];
+    Change change = CopyChange(top);
+    FreeChange(top);
+    stack->count--;
+
+    return change;
+}
 
 void BeginChange(EditorMap * map, ChangeType type)
 {
     recording = true;
     current_change.type = type;
-    saved_redo_top = map->history.redo_top;
-    map->history.redo_top = 0;
+
+    // The redo stack gets cleared when making a new change.
+    FreeChangeStack(&map->redo);
 
     switch ( type ) {
         case CHANGE_SET_TILES: {
             TileChanges * changes = &current_change.tile_changes;
+
+            if ( changes->list ) {
+                SDL_free(changes->list);
+            }
+
             changes->count = 0;
             changes->allocated = 16;
             changes->list = SDL_malloc((size_t)changes->allocated * sizeof(TileChange));
             break;
         }
+
         case CHANGE_MAP_SIZE: {
-//            MapSizeChange * c = &current_change.map_size_changes;
-//            c->num_tiles = 0;
-//            if ( c->tiles ) {
-//                SDL_free(c->tiles);
-//            }
             break;
         }
         default:
             break;
-    }
-}
-
-void CancelChange(EditorMap * map)
-{
-    if ( recording ) {
-        recording = false;
-        map->history.redo_top = saved_redo_top;
     }
 }
 
@@ -99,7 +163,7 @@ void RegisterMapSizeChange(EditorMap * map, int dx, int dy)
     int map_w = map->map.width;
     int map_h = map->map.height;
 
-    MapSizeChange * change = &current_change.map_size_changes;;
+    MapSizeChange * change = &current_change.map_size_changes;
     change->dx = dx;
     change->dy = dy;
 
@@ -127,6 +191,9 @@ void RegisterMapSizeChange(EditorMap * map, int dx, int dy)
     change->num_tiles = save_w * save_h * map->map.num_layers;
 
     size_t size = (size_t)change->num_tiles * sizeof(*change->tiles);
+    if ( change->tiles != NULL ) {
+        SDL_free(change->tiles);
+    }
     change->tiles = SDL_malloc(size);
 
     Tile * t = change->tiles;
@@ -156,6 +223,7 @@ void EndChange(EditorMap * map)
                 printf("  no changes\n");
                 return; // No changes
             }
+
             break;
         case CHANGE_MAP_SIZE:
             break;
@@ -164,19 +232,11 @@ void EndChange(EditorMap * map)
     }
 
     // Push to undo stack
-    History * history = &map->history;
-    if ( history->undo_top < MAX_HISTORY ) {
-        history->undo_stack[history->undo_top++] = current_change;
+    if ( map->undo.count < MAX_HISTORY ) {
+        PushChange(&map->undo, &current_change);
     }
 
-    switch ( current_change.type ) {
-
-        case CHANGE_SET_TILES:
-//            SDL_free(current_change.tile_changes.list);
-            break;
-        case CHANGE_MAP_SIZE:
-            break;
-    }
+    FreeChange(&current_change);
 }
 
 static void RestoreTiles(MapSizeChange * c, Map * m)
@@ -190,14 +250,14 @@ static void RestoreTiles(MapSizeChange * c, Map * m)
 // TODO: use set tile
 void Undo(EditorMap * map)
 {
-    History * history = &map->history;
     Map * m = &map->map;
 
-    if ( history->undo_top == 0 ) return;
+    if ( map->undo.count == 0 ) return;
 
     // Pop action off undo stack
-    Change a = history->undo_stack[--history->undo_top];
+    Change a = PopChange(&map->undo);
 
+    // Apply change.
     switch ( a.type ) {
         case CHANGE_SET_TILES:
             for ( int i = 0; i < a.tile_changes.count; i++ ) {
@@ -224,18 +284,20 @@ void Undo(EditorMap * map)
             break;
     }
 
-    history->redo_stack[history->redo_top++] = a; // Push
+    if ( map->redo.count < MAX_HISTORY ) {
+        PushChange(&map->redo, &a);
+        FreeChange(&a);
+    }
 }
 
 void Redo(EditorMap * map)
 {
-    History * history = &map->history;
     Map * m = &map->map;
 
-    if ( history->redo_top == 0 ) return;
+    if ( map->redo.count == 0 ) return;
 
     // Pop action off redo stack
-    Change a = history->redo_stack[--history->redo_top];
+    Change a = PopChange(&map->redo);
 
     switch ( a.type ) {
         case CHANGE_SET_TILES:
@@ -262,5 +324,9 @@ void Redo(EditorMap * map)
             break;
     }
 
-    history->undo_stack[history->undo_top++] = a; // Push
+//    map->undo.changes[map->undo.count++] = a; // Push
+    if ( map->undo.count < MAX_HISTORY ) {
+        PushChange(&map->undo, &a);
+        FreeChange(&a);
+    }
 }

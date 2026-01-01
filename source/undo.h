@@ -56,15 +56,14 @@ typedef struct {
 } Change;
 
 typedef struct {
-    Change undo_stack[MAX_HISTORY];
-    Change redo_stack[MAX_HISTORY];
-    int undo_top;
-    int redo_top;
-} History;
+    Change changes[MAX_HISTORY];
+    int count;
+} ChangeStack;
 
 void BeginChange(EditorMap * map, ChangeType type);
-void CancelChange(EditorMap * map);
+bool RecordingChange(void);
 void EndChange(EditorMap * map);
+void FreeChangeStack(ChangeStack * stack);
 
 // These are called between a BeginChange and EndChange call:
 void AddTileChange(int x, int y, int layer, GID old, GID new);
