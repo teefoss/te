@@ -11,8 +11,6 @@
 
     High Priority
     -------------
- -  TODO: map size undo/redo
- -  TODO: drag map (space)
  -  TODO: tighten up start up error handling
  -  TODO: auto save on all actions, implement backup on load
  -  TODO: center map on point func: use for screen x, y change etc
@@ -873,7 +871,9 @@ static void UI_RespondToGeneralEvent(const SDL_Event * event)
                     break;
 
                 case SDLK_SPACE:
-                    // Change to drag map state.
+                    if ( mouse_view != NULL ) {
+                        _state = &S_DragView;
+                    }
                     break;
 
                 case SDLK_BACKSLASH:
@@ -1487,12 +1487,14 @@ static void S_DragSelection_Render(void)
 static bool S_DragView_Respond(const SDL_Event * event)
 {
     switch ( event->type ) {
+
         case SDL_EVENT_KEY_UP:
             if ( event->key.key == SDLK_SPACE ) {
                 _state = &S_Main;
                 return true;
             }
             return false;
+
         case SDL_EVENT_MOUSE_BUTTON_UP:
         case SDL_EVENT_MOUSE_BUTTON_DOWN:
             if ( event->button.button == SDL_BUTTON_LEFT ) {
@@ -1500,6 +1502,7 @@ static bool S_DragView_Respond(const SDL_Event * event)
                 return true;
             }
             return false;
+
         default:
             return false;
     }
@@ -1507,23 +1510,23 @@ static bool S_DragView_Respond(const SDL_Event * event)
 
 static void S_DragView_Update(void)
 {
-//    UpdateDragView(&__map->view);
+    SetCursor(CURSOR_DRAG);
+
     View * v = UI_MouseView();
+    if ( v == NULL ) {
+        return; // Stay in drag state but don't do anything.
+    }
 
     SDL_FPoint now;
     SDL_MouseButtonFlags buttons = SDL_GetMouseState(&now.x, &now.y);
     bool left_held = buttons * SDL_BUTTON_MASK(SDL_BUTTON_LEFT);
 
     SDL_FRect vp = RectIntToFloat(&v->viewport);
-    if ( SDL_PointInRectFloat(&now, &vp) ) {
-        SetCursor(CURSOR_DRAG);
-
-        if ( left_held ) {
-            v->origin.x -= now.x - _prev_mouse.x;
-            v->origin.y -= now.y - _prev_mouse.y;
-            _prev_mouse = now;
-            ClampViewOrigin(v);
-        }
+    if ( SDL_PointInRectFloat(&now, &vp) && left_held ) {
+        v->origin.x -= (now.x - _prev_mouse.x) / GetScale(v->zoom_index);
+        v->origin.y -= (now.y - _prev_mouse.y) / GetScale(v->zoom_index);
+        _prev_mouse = now;
+        ClampViewOrigin(v);
     }
 }
 
