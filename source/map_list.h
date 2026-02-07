@@ -9,6 +9,7 @@
 #define map_list_h
 
 #include "editor.h"
+#include "config.h"
 
 extern EditorMap * __map; // Map currently being edited.
 extern char __current_map_name[MAP_NAME_LEN]; // Don't touch this!

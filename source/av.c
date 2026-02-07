@@ -61,9 +61,8 @@ LoadTextureFromBMP(const char * path)
     if ( s != NULL ) {
         t = SDL_CreateTextureFromSurface(__renderer, s);
         SDL_DestroySurface(s);
+        SDL_SetTextureScaleMode(t, SDL_SCALEMODE_NEAREST);
     }
-
-    SDL_SetTextureScaleMode(t, SDL_SCALEMODE_NEAREST);
 
     return t;
 }

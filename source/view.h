@@ -56,5 +56,6 @@ void RenderGrid(const View * view,
 
 /// Zoom view in or out. `pt` is in viewport space.
 void ZoomView(View * view, ZoomDirection dir, const SDL_Point * pt);
+void CenterViewAtPoint(View * view, const SDL_Point * world_pt);
 
 #endif /* view_h */

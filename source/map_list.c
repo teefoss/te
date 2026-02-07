@@ -120,15 +120,12 @@ void SetCurrentMap(const char * path)
     }
 }
 
-static void EditorStatePerform(EditorMap * editor_map, ConfigFunc func)
+static void EditorStatePerform(EditorMap * editor_map,
+                               ConfigFunc func)
 {
-    if ( !SDL_CreateDirectory(".state") ) {
-        LogError("SDL_CreateDirectory failed: %s", SDL_GetError());
-        return;
-    }
-
-    char path[1024] = { 0 };
-    snprintf(path, sizeof(path), ".state/%s_state.txt", editor_map->path);
+    char * project_path = GetProjectStateDirectory();
+    char full_path[1024] = { 0 };
+    snprintf(full_path, sizeof(full_path), "%s/%s.txt", project_path, editor_map->path);
 
     Option options[] = {
         { CONFIG_FLOAT,     "x_position",   &editor_map->view.origin.x },
@@ -140,7 +137,7 @@ static void EditorStatePerform(EditorMap * editor_map, ConfigFunc func)
         { CONFIG_NULL },
     };
 
-    func(options, path);
+    func(options, full_path);
 }
 
 void LoadMapState(void)

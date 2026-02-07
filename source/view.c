@@ -239,6 +239,14 @@ void ScrollView(View * view, int dx, int dy)
     ClampViewOrigin(view);
 }
 
+void CenterViewAtPoint(View * view, const SDL_Point * world_pt)
+{
+    float scale = GetScale(view->zoom_index);
+    view->origin.x = world_pt->x - (view->viewport.w / 2) / scale;
+    view->origin.y = world_pt->y - (view->viewport.h / 2) / scale;
+    ClampViewOrigin(view);
+}
+
 void ZoomView(View * view, ZoomDirection dir, const SDL_Point * pt)
 {
     int x, y;

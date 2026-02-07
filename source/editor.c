@@ -11,9 +11,10 @@
 
     High Priority
     -------------
- -  TODO: tighten up start up error handling
- -  TODO: auto save on all actions, implement backup on load
- -  TODO: center map on point func: use for screen x, y change etc
+ -  test screen focus centering
+ -  TODO: allow map overscrolling
+ -  TODO: resize map by 8
+ -  auto save on all actions, implement backup on load?
  -  Tools
     * Rect
     * Replace all?
@@ -31,19 +32,20 @@
 
  -------------------------------------------------------------------------------
  BUGS
+ -  TODO: State should be per-project so that settings from project aren't loaded into another
+ -  TODO: Go over parse library with a fine-tooth comb
  -  View not clamped on init and some actions (resize map)
  -  Control-S not registering on first attempt? Might be just my keyboard
  -  "invalid map position"
- -  TODO: map cursor appearing when over palette
  */
 
 #include "editor.h"
 
 #include "args.h"
-#include "asset_data.h"
 #include "av.h"
 #include "config.h"
 #include "cursor.h"
+#include "font.h"
 #include "map_list.h"
 #include "misc.h"
 #include "parser.h"
@@ -57,7 +59,6 @@
 #include <SDL3/SDL.h>
 
 #define DEFAULT_PROJECT_FILE "main.teproj"
-#define EDITOR_STATE_CONFIG_FILE ".state/editor_state.txt"
 #define MAP_VERSION 1
 #define PROJECT_VERSION 1
 
@@ -121,6 +122,7 @@ static ToolDef _tools[] = {
 // Holy global state, batman
 
 static bool         _is_running = true;
+static const char * _project_path;
 static Font *       _font;
 static int          _tile_size = 16; // Tile size in pixels.
 static int          _screen_w = 0; // Visible region in tiles or 0 if unused.
@@ -186,11 +188,8 @@ STATE_DEF( S_DragPaint )
 STATE_DEF( S_DragSelection )
 STATE_DEF( S_Main )
 
-static Option config[] = {
-    { CONFIG_COMMENT, "" },
-    { CONFIG_COMMENT, "Editor State File - N.B. te creates and reads this file, " },
-    { CONFIG_COMMENT, "do not alter it unless you know what you're doing." },
-    { CONFIG_COMMENT, "" },
+// TODO: pass this into save/load so it can be written per-project.
+static const Option config[] = {
     { CONFIG_DEC_INT, "current_tile_set",   &_tile_set_index },
     { CONFIG_DEC_INT, "palette_zoom_0",     &_tileset_views[0].zoom_index },
     { CONFIG_DEC_INT, "palette_zoom_1",     &_tileset_views[1].zoom_index },
@@ -218,7 +217,6 @@ static Option config[] = {
     { CONFIG_BOOL,    "show_screen_lines",  &_showing_screen_lines },
     { CONFIG_STR,     "current_map",        __current_map_name, MAP_NAME_LEN },
     { CONFIG_DEC_INT, "unfocused_opacity",  &_unfocused_opacity },
-
     { CONFIG_NULL },
 };
 
@@ -527,11 +525,10 @@ static void UI_RenderMapView(void)
     SDL_SetRenderDrawColor(__renderer, gray, gray, gray, 255);
     SDL_RenderFillRect(__renderer, NULL);
 
-    RenderViewBackground(map_view, __map->map.bg_color);
+    RenderViewBackground(map_view, _default_bg_color);
 
     // Render Map
     // TODO: render only visible tiles
-
     for ( int l = 0; l < __map->map.num_layers; l++ ) {
 
         if ( !_layers[l].is_visible ) continue;
@@ -580,16 +577,32 @@ static void UI_RenderMapView(void)
 
         for ( int y = 0; y < screens_per_col; y++ ) {
             for ( int x = 0; x < screens_per_row; x++ ) {
-                if ( x != __map->screen_x || y != __map->screen_y ) {
-                    SDL_FRect r = GetViewRect(map_view,
-                                              x * _screen_w * _tile_size,
-                                              y * _screen_h * _tile_size,
-                                              _screen_w * _tile_size,
-                                              _screen_h * _tile_size);
+                if ( x == __map->screen_x && y == __map->screen_y ) continue;
 
-                    SetGrayAlpha(0, (Uint8)_unfocused_opacity);
-                    SDL_RenderFillRect(__renderer, &r);
+                int screen_tile_x = x * _screen_w;
+                int screen_tile_y = y * _screen_h;
+
+                int screen_w = _screen_w;
+                if ( x == screens_per_row - 1 ) {
+                    screen_w = __map->map.width - screen_tile_x;
                 }
+
+                int screen_h = _screen_h;
+                if ( y == screens_per_col - 1 ) {
+                    screen_h = __map->map.height - screen_tile_y;
+                }
+
+                SDL_FRect r = GetViewRect(map_view,
+                                          screen_tile_x * _tile_size,
+                                          screen_tile_y * _tile_size,
+                                          screen_w * _tile_size,
+                                          screen_h * _tile_size);
+
+
+
+                SetGrayAlpha(0, (Uint8)_unfocused_opacity);
+                SDL_RenderFillRect(__renderer, &r);
+
             }
         }
     }
@@ -621,7 +634,8 @@ static void UI_RenderPaletteView(void)
 
     SDL_SetRenderViewport(__renderer, &view->viewport);
 
-    RenderViewBackground(view, __map->map.bg_color);
+//    RenderViewBackground(view, __map->map.bg_color);
+    RenderViewBackground(view, _default_bg_color);
     RenderGrid(view, _bg_color, 0.2f, _tile_size, _tile_size);
 
     // Render the entire tileset.
@@ -766,6 +780,11 @@ static void UI_RespondToGeneralEvent(const SDL_Event * event)
                     if ( mods & SDL_KMOD_ALT ) {
                         __map->screen_x = SDL_max(__map->screen_x - 1, 0);
                         UI_SetStatus("Focused Screen (%d, %d)\n", __map->screen_x, __map->screen_y);
+                        SDL_Point pt = {
+                            .x = (__map->screen_x * _screen_w * _tile_size) + (_screen_w * _tile_size / 2),
+                            .y = (__map->screen_y * _screen_h * _tile_size) + (_screen_w * _tile_size / 2)
+                        };
+                        CenterViewAtPoint(&__map->view, &pt);
                     } else {
                         _keys_held.left = true;
                     }
@@ -774,6 +793,11 @@ static void UI_RespondToGeneralEvent(const SDL_Event * event)
                     if ( mods & SDL_KMOD_ALT ) {
                         __map->screen_x = SDL_min(__map->screen_x + 1, __map->map.width / _screen_w);
                         UI_SetStatus("Focused Screen (%d, %d)\n", __map->screen_x, __map->screen_y);
+                        SDL_Point pt = {
+                            .x = (__map->screen_x * _screen_w * _tile_size) + (_screen_w * _tile_size / 2),
+                            .y = (__map->screen_y * _screen_h * _tile_size) + (_screen_w * _tile_size / 2)
+                        };
+                        CenterViewAtPoint(&__map->view, &pt);
                     } else {
                         _keys_held.right = true;
                     }
@@ -785,6 +809,11 @@ static void UI_RespondToGeneralEvent(const SDL_Event * event)
                     } else if ( mods & SDL_KMOD_ALT ) {
                         __map->screen_y = SDL_min(__map->screen_y + 1, __map->map.height / _screen_h);
                         UI_SetStatus("Focused Screen (%d, %d)\n", __map->screen_x, __map->screen_y);
+                        SDL_Point pt = {
+                            .x = (__map->screen_x * _screen_w * _tile_size) + (_screen_w * _tile_size / 2),
+                            .y = (__map->screen_y * _screen_h * _tile_size) + (_screen_w * _tile_size / 2)
+                        };
+                        CenterViewAtPoint(&__map->view, &pt);
                     } else {
                         _keys_held.down = true;
                     }
@@ -793,6 +822,11 @@ static void UI_RespondToGeneralEvent(const SDL_Event * event)
                     if ( mods & SDL_KMOD_ALT ) {
                         __map->screen_y = SDL_max(__map->screen_y - 1, 0);
                         UI_SetStatus("Focused Screen (%d, %d)\n", __map->screen_x, __map->screen_y);
+                        SDL_Point pt = {
+                            .x = (__map->screen_x * _screen_w * _tile_size) + (_screen_w * _tile_size / 2),
+                            .y = (__map->screen_y * _screen_h * _tile_size) + (_screen_w * _tile_size / 2)
+                        };
+                        CenterViewAtPoint(&__map->view, &pt);
                     } else {
                         _keys_held.up = true;
                     }
@@ -969,20 +1003,26 @@ static bool A_CreateProjectFile(void)
     fprintf(file, "map: mymap1 32 32\n");
     fprintf(file, "map: mymap2 32 32\n");
 
+    printf("Created project file '%s'!\n", project_path);
+
     fclose(file);
     return true;
 }
 
 static void A_LoadProjectFile(void)
 {
-    char * project_path = GetStrOption("--project", "-p");
-    if ( project_path == NULL ) {
-        project_path = DEFAULT_PROJECT_FILE;
+    _project_path = GetStrOption("--project", "-p");
+    if ( _project_path == NULL ) {
+        printf("No project file specified, we'll try to load '%s'...\n", DEFAULT_PROJECT_FILE);
+        _project_path = DEFAULT_PROJECT_FILE;
+    } else {
+        printf("Loading project '%s'\n...", _project_path);
     }
 
-    printf("Loading project '%s'\n...", project_path);
-    if ( !BeginParsing(project_path) ) {
-        return; // Project file not present.
+    if ( !BeginParsing(_project_path) ) {
+        printf("Project file '%s' not found. There must be a project present\n"
+               "to run [te]. Create one with --init!\n", _project_path);
+        exit(EXIT_FAILURE);
     }
 
     char ident[STR_LEN];
@@ -1024,6 +1064,11 @@ static void A_LoadProjectFile(void)
             GetTilesetPath(set->id, path, sizeof(path));
 
             set->texture = LoadTextureFromBMP(path);
+            if ( set->texture == NULL ) {
+                printf("Could not load tile set '%s'\n", path);
+                exit(EXIT_FAILURE);
+            }
+
             set->rows = set->texture->h / _tile_size;
             set->columns = set->texture->w / _tile_size;
             set->num_tiles = set->rows * set->columns;
@@ -1067,7 +1112,7 @@ static void A_LoadProjectFile(void)
 
             OpenEditorMap(path, (Uint16)w, (Uint16)h, (Uint8)_num_layers);
         } else {
-            fprintf(stderr, "Unknown property in '%s': '%s'\n", ident, project_path);
+            fprintf(stderr, "Unknown property in '%s': '%s'\n", ident, _project_path);
             exit(EXIT_FAILURE);
         }
     }
@@ -1136,6 +1181,23 @@ static void A_InitViews(void)
     A_UpdateViewSizes();
 }
 
+char * GetProjectStateDirectory(void)
+{
+    if ( _project_path == NULL ) {
+        return NULL;
+    }
+
+    static char path[1024] = { 0 };
+    snprintf(path, sizeof(path), ".te_state/%s/", _project_path);
+
+    if ( !SDL_CreateDirectory(path) ) {
+        LogError("SDL_CreateDirectory failed: %s", SDL_GetError());
+        return false;
+    }
+
+    return path;
+}
+
 static void A_InitEditor(void)
 {
     // Set default layer names and visibility.
@@ -1156,7 +1218,11 @@ static void A_InitEditor(void)
 
     SelectDefaultCurrentMap();
 
-    if ( LoadConfig(config, EDITOR_STATE_CONFIG_FILE) ) {
+    char * dir = GetProjectStateDirectory();
+    char full_path[1024] = { 0 };
+    snprintf(full_path, sizeof(full_path), "%s/state.txt", dir);
+
+    if ( LoadConfig(config, full_path) ) {
         SDL_SetWindowPosition(__window, _window_frame.x, _window_frame.y);
         SDL_SetWindowSize(__window, _window_frame.w, _window_frame.h);
 
@@ -1738,24 +1804,27 @@ static void S_Main_Update(void)
 
 static void S_Main_Render(void)
 {
-    View * view;
+    View * mouse_view = UI_MouseView();
 
-    // Render Tileset Overlays
+    // Render tileset overlays
 
-    view = &_tileset_views[_tile_set_index];
-
-    SDL_SetRenderViewport(__renderer, &view->viewport);
-
-    TileRegion * box = &view->selection_box;
-    RenderViewSelectionBox(view,
+    // Selection box
+    View * ts_view = &_tileset_views[_tile_set_index];
+    SDL_SetRenderViewport(__renderer, &ts_view->viewport);
+    TileRegion * box = &ts_view->selection_box;
+    RenderViewSelectionBox(ts_view,
                            box->min_x, box->min_y, box->max_x, box->max_y,
                            _tile_size);
-    UI_RenderIndicator(&_tileset_views[_tile_set_index]);
 
-    // Render Map Overlaps
+    // Indicator
+    if ( mouse_view == ts_view ) {
+        UI_RenderIndicator(&_tileset_views[_tile_set_index]);
+    }
 
+    // Render map view overlays
+
+    // Selection box
     SDL_SetRenderViewport(__renderer, &__map->view.viewport);
-
     box = &__map->view.selection_box;
     if ( __map->view.has_selection ) {
         RenderViewSelectionBox(&__map->view,
@@ -1763,7 +1832,10 @@ static void S_Main_Render(void)
                                _tile_size);
     }
 
-    UI_RenderIndicator(&__map->view);
+    // Indicator
+    if ( mouse_view == &__map->view) {
+        UI_RenderIndicator(&__map->view);
+    }
 
     if ( _showing_clipboard ) {
         UI_RenderClipboard();
@@ -1772,7 +1844,9 @@ static void S_Main_Render(void)
             case TOOL_ERASE:
                 break;
             default:
-                UI_RenderBrush();
+                if ( mouse_view == &__map->view ) {
+                    UI_RenderBrush();
+                }
                 break;
         }
     }
@@ -1829,7 +1903,8 @@ static void S_DragPaint_Render(void)
 
 int main(int argc, char ** argv)
 {
-    (void)S_DragView; // TODO: temp
+    printf("[te] Tile Editor\n");
+    printf("(C) 2026 Tom Foster (github.com/teefoss)\n\n");
 
     LoadArgs(argc, argv);
     srand((unsigned)time(NULL));
@@ -1842,6 +1917,12 @@ int main(int argc, char ** argv)
         return EXIT_SUCCESS;
     }
 
+    if ( ArgIsPresent("-h") || ArgIsPresent("--help") ) {
+        printf("There probably should be some help here. Oh well. (See "
+               "readme.txt)\n");
+        return EXIT_SUCCESS;
+    }
+
     InitVideo(1280, 800, 1);
     InitSound();
     A_InitEditor();
@@ -1851,8 +1932,13 @@ int main(int argc, char ** argv)
         A_DoEditorFrame();
     }
 
-    SaveConfig(config, EDITOR_STATE_CONFIG_FILE);
+
+    char * path = GetProjectStateDirectory();
+    char full_path[1024] = { 0 };
+    snprintf(full_path, sizeof(full_path), "%s/state.txt", path);
+    SaveConfig(config, full_path);
     SaveMapState();
+
     FreeMaps();
 
     return 0;

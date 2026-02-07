@@ -7,19 +7,22 @@
 
 #include "cursor.h"
 #include "editor.h"
+#include "cursor_data.h"
 
 #include <stdio.h>
 
 static SDL_Cursor * cursors[CURSOR_COUNT];
 static Cursor current = CURSOR_SYSTEM;
 
-static SDL_Cursor * LoadCursor(const char * base, int hot_x, int hot_y)
+static SDL_Cursor * LoadCursor(const unsigned char * data,
+                               size_t size,
+                               int hot_x,
+                               int hot_y)
 {
-    char path[256] = { 0 };
-    snprintf(path, sizeof(path), "editor_assets/cursors/%s.bmp", base);
-    SDL_Surface * surface = SDL_LoadBMP(path);
+    SDL_IOStream * stream = SDL_IOFromConstMem(data, size);
+    SDL_Surface * surface = SDL_LoadBMP_IO(stream, true);
     if ( surface == NULL ) {
-        fprintf(stderr, "failed to load cursor bmp at %s\n", path);
+        fprintf(stderr, "failed to load cursor\n");
         return NULL;
     }
 
@@ -31,11 +34,11 @@ static SDL_Cursor * LoadCursor(const char * base, int hot_x, int hot_y)
 
 void InitCursors(void)
 {
-    cursors[CURSOR_CROSSHAIR] = LoadCursor("cursor", 7, 7);
-    cursors[CURSOR_ERASE] = LoadCursor("eraser", 9, 7);
-    cursors[CURSOR_DRAG] = LoadCursor("grab_hand", 6, 8);
-    cursors[CURSOR_FILL] = LoadCursor("paint_bucket", 3, 14);
-    cursors[CURSOR_PAINT] = LoadCursor("paint_brush", 5, 17);
+    cursors[CURSOR_CROSSHAIR] = LoadCursor(cursor_bmp, sizeof(cursor_bmp), 7, 7);
+    cursors[CURSOR_ERASE] = LoadCursor(eraser_bmp, sizeof(eraser_bmp), 9, 7);
+    cursors[CURSOR_DRAG] = LoadCursor(grab_hand_bmp, sizeof(grab_hand_bmp), 6, 8);
+    cursors[CURSOR_FILL] = LoadCursor(paint_bucket_bmp, sizeof(paint_bucket_bmp), 3, 14);
+    cursors[CURSOR_PAINT] = LoadCursor(paint_brush_bmp, sizeof(paint_brush_bmp), 5, 17);
     cursors[CURSOR_SYSTEM] = SDL_GetDefaultCursor();
 }
 

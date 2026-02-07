@@ -59,4 +59,6 @@ typedef struct editor_map {
     struct editor_map * next;
 } EditorMap;
 
+char * GetProjectStateDirectory(void);
+
 #endif /* editor_h */

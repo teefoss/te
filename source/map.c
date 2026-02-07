@@ -274,13 +274,13 @@ bool CreateMap(const char * path, Uint16 w, Uint16 h, Uint8 num_layers)
 
 void ResizeMap(Map * map, Uint16 new_w, Uint16 new_h)
 {
-    size_t new_size = (size_t)(new_w * new_h) * sizeof(GID);
+    size_t new_tile_count = (size_t)(new_w * new_h);
 
     int w = SDL_min(map->width, new_w);
     int h = SDL_min(map->height, new_h);
 
     for ( int l = 0; l < map->num_layers; l++ ) {
-        GID * new_tiles = SDL_malloc(new_size);
+        GID * new_tiles = SDL_calloc(new_tile_count, sizeof(*new_tiles));
 
         // Copy old map tiles to new_tiles
         for ( int y = 0; y < h; y++ ) {
@@ -431,7 +431,7 @@ Tileset * GetGIDLocation(Tileset * tilesets, GID gid, int * x, int * y)
 
     int index = gid - ts->first_gid;
     *x = index % ts->columns;
-    *y = index / ts->rows;
+    *y = index / ts->columns;
     return ts;
 }
 

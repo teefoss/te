@@ -150,7 +150,7 @@ void Expect(TokenType token_type)
 bool AcceptInt(int * out)
 {
     if ( Accept(TOK_NUMBER) ) {
-        *out = peek.number;
+        *out = token.number;
         return true;
     }
 
