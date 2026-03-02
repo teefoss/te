@@ -8,3 +8,5 @@ graphics/*
 assets/
 external/
 te
+bin2h.sh
+source/gen_proto.sh

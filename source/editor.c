@@ -1144,17 +1144,6 @@ static void A_LoadProjectFile(void)
     }
 
     EndParsing();
-
-    // Now that all _tilesets has been loaded, set _active_tileset using the
-    // saved index value from the config:
-    int i = 0;
-    FOR_EACH_TILESET(set) {
-        if ( i == _tile_set_index ) {
-            _active_tileset = set;
-            break;
-        }
-        i++;
-    }
 }
 
 void A_GetTilesetPath(const char * id, char * out, size_t len)
@@ -1269,6 +1258,16 @@ static void A_InitEditor(void)
         SDL_SetWindowSize(__window, _window_frame.w, _window_frame.h);
 
         SetCurrentMap(__current_map_name);
+
+        // Set _active_tileset using the saved index in config
+        int i = 0;
+        FOR_EACH_TILESET(set) {
+            if ( i == _tile_set_index ) {
+                _active_tileset = set;
+                break;
+            }
+            i++;
+        }
     } else {
         // Update window frame var with whatever the default is for now.
         A_UpdateWindowFrame();
@@ -1469,6 +1468,8 @@ static void E_SetBrushFromMap(void)
     _tileset_views[i].selection_box.min_y = y;
     _tileset_views[i].selection_box.max_x = x;
     _tileset_views[i].selection_box.max_y = y;
+
+    UI_ChangeTool(TOOL_PAINT);
 }
 
 static void E_ResizeMap(int dx, int dy)
