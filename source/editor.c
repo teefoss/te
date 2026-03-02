@@ -14,12 +14,19 @@
  -  test screen focus centering
  -  TODO: allow map overscrolling
  -  TODO: resize map by 8
+ -  TODO: in any tool, right click switched to paint
+ -  TODO: select paint when making selection in palette
+ -  TODO: palettes should start zoomed to fit and at the top
+ -  TODO: te using 25% CPU
  -  auto save on all actions, implement backup on load?
  -  Tools
     * Rect
     * Replace all?
     * Others?
  -  Build in assets
+
+ -  If showing clipboard, making a selection in the palette switches to paint
+ -  Back-tick: show all layers
 
     Low Priority
     ------------
@@ -31,12 +38,10 @@
     --------
 
  -------------------------------------------------------------------------------
- BUGS
- -  TODO: State should be per-project so that settings from project aren't loaded into another
- -  TODO: Go over parse library with a fine-tooth comb
- -  View not clamped on init and some actions (resize map)
- -  Control-S not registering on first attempt? Might be just my keyboard
- -  "invalid map position"
+ -  FIXME: Go over parse library with a fine-tooth comb
+ -  FIXME: View not clamped on init and some actions (resize map)
+ -  FIXME: Control-S not registering on first attempt? Might be just my keyboard
+ -  FIXME: "invalid map position"
  */
 
 #include "editor.h"
@@ -84,9 +89,13 @@ typedef struct {
 typedef struct {
     int width;
     int height;
-    GID * tiles[MAX_LAYERS];
-    int copied_layers[MAX_LAYERS];
+    // Multi-layer copying:
+#if 0
+    GID * tiles[MAX_LAYERS]; // One array for each layer.
+    int copied_layers[MAX_LAYERS]; // Indices of copied layers.
     int num_copied_layers;
+#endif
+    GID * tiles;
     int allocated_slots;
 } Clipboard;
 
@@ -123,6 +132,7 @@ static ToolDef _tools[] = {
 
 static bool         _is_running = true;
 static const char * _project_path;
+static char         _maps_path[1024];
 static Font *       _font;
 static int          _tile_size = 16; // Tile size in pixels.
 static int          _screen_w = 0; // Visible region in tiles or 0 if unused.
@@ -156,6 +166,7 @@ static bool         _showing_grid_lines = true;
 static int          _unfocused_opacity = 160; // Dim unfocused screens.
 
 // Tilesets
+static char         _tilesets_path[1024];
 static Tileset *    _tilesets; // Linked list
 static Tileset *    _active_tileset; // Tileset currently being displayed
 static int          _tile_set_index; // "Index" of active tileset
@@ -226,6 +237,8 @@ static const Option config[] = {
 
 static bool A_CreateProjectFile(void);
 static void A_DoEditorFrame(void);
+       void A_GetTilesetPath(const char * id, char * out, size_t len);
+       void A_GetMapPath(const char * id, char * out, size_t len);
 static void A_InitEditor(void);
 static void A_InitViews(void);
 static void A_LoadProjectFile(void);
@@ -369,7 +382,7 @@ static void UI_Toggle(bool * value, const char * message, const char * on, const
 static void UI_SelectLayer(SDL_Keycode key)
 {
     int new_layer = (int)key - (int)SDLK_1;
-    if ( new_layer > _num_layers ) return;
+    if ( new_layer >= _num_layers ) return;
 
     SDL_Keymod mods = SDL_GetModState();
 
@@ -477,20 +490,16 @@ static void UI_RenderClipboard(void)
 
     Clipboard * cb = &_clipboard;
 
-    for ( int n = 0; n < cb->num_copied_layers; n++ ) {
-        int l = cb->copied_layers[n];
-
-        for ( int y = 0; y < cb->height; y++ ) {
-            for ( int x = 0; x < cb->width; x++ ) {
-                GID gid = cb->tiles[l][y * cb->width + x];
-                int dest_x = _hover_tile_x + x;
-                int dest_y = _hover_tile_y + y;
-                SDL_FRect dest = GetTileRect(&__map->view,
-                                             dest_x,
-                                             dest_y,
-                                             _tile_size);
-                RenderTile(__renderer, gid, _tilesets, &dest);
-            }
+    for ( int y = 0; y < cb->height; y++ ) {
+        for ( int x = 0; x < cb->width; x++ ) {
+            GID gid = cb->tiles[y * cb->width + x];
+            int dest_x = _hover_tile_x + x;
+            int dest_y = _hover_tile_y + y;
+            SDL_FRect dest = GetTileRect(&__map->view,
+                                         dest_x,
+                                         dest_y,
+                                         _tile_size);
+            RenderTile(__renderer, gid, _tilesets, &dest);
         }
     }
 }
@@ -660,7 +669,7 @@ static void UI_RenderHUD(void)
     }
 
     RenderString(_font, vp->x, top_text_y, "%s (%d*%d)",
-                 __map->path, __map->map.width, __map->map.height);
+                 __map->name, __map->map.width, __map->map.height);
 
     int status_w = StringWidth(_font, "%s", _status);
     if ( status_w != 0 ) {
@@ -760,6 +769,12 @@ static void UI_RespondToGeneralEvent(const SDL_Event * event)
                     UI_SelectLayer(event->key.key);
                     break;
 
+                case SDLK_GRAVE:
+                    for ( int i = 0; i < _num_layers; i++ ) {
+                        _layers[i].is_visible = true;
+                    }
+                    break;
+
                     // Copy to Clipboard
                 case SDLK_C:
                     if ( (mods & CTRL_KEY) && __map->view.has_selection ) {
@@ -802,10 +817,11 @@ static void UI_RespondToGeneralEvent(const SDL_Event * event)
                         _keys_held.right = true;
                     }
                     break;
+
                 case SDLK_S:
                     if ( mods & CTRL_KEY ) {
                         SaveCurrentMap();
-                        UI_SetStatus("Saved '%s'\n", __map->path);
+                        UI_SetStatus("Saved '%s'\n", __map->name);
                     } else if ( mods & SDL_KMOD_ALT ) {
                         __map->screen_y = SDL_min(__map->screen_y + 1, __map->map.height / _screen_h);
                         UI_SetStatus("Focused Screen (%d, %d)\n", __map->screen_x, __map->screen_y);
@@ -818,6 +834,7 @@ static void UI_RespondToGeneralEvent(const SDL_Event * event)
                         _keys_held.down = true;
                     }
                     break;
+
                 case SDLK_W:
                     if ( mods & SDL_KMOD_ALT ) {
                         __map->screen_y = SDL_max(__map->screen_y - 1, 0);
@@ -842,23 +859,25 @@ static void UI_RespondToGeneralEvent(const SDL_Event * event)
                     }
                     break;
 
-                    // Show/Hide grid lines
+                // Show/Hide grid lines
                 case SDLK_F1:
                     UI_Toggle(&_showing_grid_lines, "Grid Lines", "Shown", "Hidden");
                     break;
+
                 case SDLK_F2:
                     if ( !__map->focus_screen && _screen_w != 0 && _screen_h != 0 ) {
                         UI_Toggle(&_showing_screen_lines,
                                   "Screen Lines", "Shown", "Hidden");
                     }
                     break;
+
                 case SDLK_F3:
                     if ( _screen_w != 0 && _screen_h != 0 ) {
                         UI_Toggle(&__map->focus_screen, "Focus Screen", "On", "Off");
                     }
                     break;
 
-                    // Change view selection
+                // Change view selection
                 case SDLK_LEFTBRACKET:
                     key_view->next_item(-1);
                     break;
@@ -1054,14 +1073,14 @@ static void A_LoadProjectFile(void)
             AcceptIdent(_tile_flags[bit].ident, sizeof(_tile_flags[0].ident));
             _num_tile_flags++;
         }
-        else if ( STREQ(ident, "tile_set") ) {
+        else if ( STREQ(ident, "tileset") ) {
             MatchSymbol(':');
 
             Tileset * set = calloc(1, sizeof(*set));
             ExpectString(set->id, sizeof(set->id));
 
             char path[256] = { 0 };
-            GetTilesetPath(set->id, path, sizeof(path));
+            A_GetTilesetPath(set->id, path, sizeof(path));
 
             set->texture = LoadTextureFromBMP(path);
             if ( set->texture == NULL ) {
@@ -1075,6 +1094,14 @@ static void A_LoadProjectFile(void)
             set->tile_size = _tile_size;
             AddTileset(&_tilesets, set);
             _num_tilesets++;
+        }
+        else if ( STREQ(ident, "tilesets_path") ) {
+            MatchSymbol(':');
+            ExpectString(_tilesets_path, sizeof(_tilesets_path));
+        }
+        else if ( STREQ(ident, "maps_path") ) {
+            MatchSymbol(':');
+            ExpectString(_maps_path, sizeof(_maps_path));
         }
         else if ( STREQ(ident, "background_color") ) {
             MatchSymbol(':');
@@ -1100,9 +1127,8 @@ static void A_LoadProjectFile(void)
             _default_map_height = ExpectInt();
         } else if ( STREQ(ident, "map") ) {
             MatchSymbol(':');
-            char path[MAP_NAME_LEN] = { 0 };
-            ExpectIdent(path, sizeof(path));
-            strcat(path, ".temap");
+            char map_name[MAP_NAME_LEN] = { 0 };
+            ExpectString(map_name, sizeof(map_name));
 
             int w = _default_map_width;
             int h = _default_map_height;
@@ -1110,7 +1136,7 @@ static void A_LoadProjectFile(void)
                 h = ExpectInt();
             }
 
-            OpenEditorMap(path, (Uint16)w, (Uint16)h, (Uint8)_num_layers);
+            OpenEditorMap(map_name, (Uint16)w, (Uint16)h, (Uint8)_num_layers);
         } else {
             fprintf(stderr, "Unknown property in '%s': '%s'\n", ident, _project_path);
             exit(EXIT_FAILURE);
@@ -1129,6 +1155,20 @@ static void A_LoadProjectFile(void)
         }
         i++;
     }
+}
+
+void A_GetTilesetPath(const char * id, char * out, size_t len)
+{
+    if ( len == 0 ) return;
+
+    snprintf(out, len, "%s/%s.bmp", _tilesets_path, id);
+}
+
+void A_GetMapPath(const char * id, char * out, size_t len)
+{
+    if ( len == 0 ) return;
+
+    snprintf(out, len, "%s/%s.temap", _maps_path, id);
 }
 
 /// Update viewport and content sizes (e.g. after a window size change))
@@ -1188,7 +1228,9 @@ char * GetProjectStateDirectory(void)
     }
 
     static char path[1024] = { 0 };
+//    char * base = SDL_GetPrefPath("teefoss", "te");
     snprintf(path, sizeof(path), ".te_state/%s/", _project_path);
+//    SDL_free(base);
 
     if ( !SDL_CreateDirectory(path) ) {
         LogError("SDL_CreateDirectory failed: %s", SDL_GetError());
@@ -1304,27 +1346,17 @@ static void E_CopyToClipboard(void)
     // Resize clipboard if needed.
     int slots_needed = _clipboard.width * _clipboard.height;
     if ( _clipboard.allocated_slots < slots_needed ) {
-        size_t size = (size_t)slots_needed * sizeof(*_clipboard.tiles[0]);
-        for ( int i = 0; i < __map->map.num_layers; i++ ) {
-            _clipboard.tiles[i] = realloc(_clipboard.tiles[i], size);
-        }
+        size_t size = (size_t)slots_needed * sizeof(*_clipboard.tiles);
+        _clipboard.tiles = realloc(_clipboard.tiles, size);
         _clipboard.allocated_slots = slots_needed;
     }
 
-    _clipboard.num_copied_layers = 0;
-
-    for ( int i = 0; i < __map->map.num_layers; i++ ) {
-        if ( !_layers[i].is_visible ) continue;
-
-        _clipboard.copied_layers[_clipboard.num_copied_layers++] = i;
-
-        for ( int y = 0; y < _clipboard.height; y++ ) {
-            for ( int x = 0; x < _clipboard.width; x++ ) {
-                GID * dest = &_clipboard.tiles[i][y * _clipboard.width + x];
-                int src_x = box->min_x + x;
-                int src_y = box->min_y + y;
-                *dest = GetMapTile(&__map->map, src_x, src_y, i);
-            }
+    for ( int y = 0; y < _clipboard.height; y++ ) {
+        for ( int x = 0; x < _clipboard.width; x++ ) {
+            GID * dest = &_clipboard.tiles[y * _clipboard.width + x];
+            int src_x = box->min_x + x;
+            int src_y = box->min_y + y;
+            *dest = GetMapTile(&__map->map, src_x, src_y, _layer);
         }
     }
 
@@ -1342,24 +1374,21 @@ static void E_ApplyClipboard(void)
     Clipboard * cb = &_clipboard;
     BeginChange(__map, CHANGE_SET_TILES);
 
-    for ( int n = 0; n < cb->num_copied_layers; n++ ) {
-        int l = cb->copied_layers[n];
+    for ( int y = 0; y < cb->height; y++ ) {
+        int dest_y = _hover_tile_y + y;
+        if ( dest_y >= __map->map.height ) continue;
 
-        for ( int y = 0; y < cb->height; y++ ) {
-            int dest_y = _hover_tile_y + y;
-            if ( dest_y >= __map->map.height ) continue;
+        for ( int x = 0; x < cb->width; x++ ) {
+            int dest_x = _hover_tile_x + x;
+            if ( dest_x >= __map->map.width ) continue;
 
-            for ( int x = 0; x < cb->width; x++ ) {
-                int dest_x = _hover_tile_x + x;
-                if ( dest_x >= __map->map.width ) continue;
-
-                // TODO: convert to get/set tile
-                GID * dst = &__map->map.tiles[l][dest_y * __map->map.width + dest_x];
-                GID * src = &cb->tiles[l][y * cb->width + x];
-                AddTileChange(dest_x, dest_y, _layer, *dst, *src);
-                *dst = *src;
-                __map->is_dirty = true;
-            }
+            // TODO: convert to get/set tile
+            int l = _layer;
+            GID * dst = &__map->map.tiles[l][dest_y * __map->map.width + dest_x];
+            GID * src = &cb->tiles[y * cb->width + x];
+            AddTileChange(dest_x, dest_y, _layer, *dst, *src);
+            *dst = *src;
+            __map->is_dirty = true;
         }
     }
 

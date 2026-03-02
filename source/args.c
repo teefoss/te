@@ -18,7 +18,7 @@ void LoadArgs(int argc, char ** argv)
     _argv = argv;
 }
 
-int GetArgNum(const char * arg)
+int GetIndexOfArg(const char * arg)
 {
     for ( int i = 0; i < _argc; i++ ) {
         if ( strcmp(_argv[i], arg) == 0 ) {
@@ -31,7 +31,7 @@ int GetArgNum(const char * arg)
 
 bool ArgIsPresent(const char * arg)
 {
-    return GetArgNum(arg) != -1;
+    return GetIndexOfArg(arg) != -1;
 }
 
 const char * GetArg(int index)
@@ -52,14 +52,14 @@ static bool IsValidOptionIndex(int i)
 
 char * GetStrOption(const char * arg, const char * alt)
 {
-    int i = GetArgNum(arg);
+    int i = GetIndexOfArg(arg);
 
     if ( IsValidOptionIndex(i) ) {
         return _argv[i + 1];
     }
 
     if ( alt ) {
-        i = GetArgNum(alt);
+        i = GetIndexOfArg(alt);
 
         if ( IsValidOptionIndex(i) ) {
             return _argv[i + 1];
@@ -71,10 +71,10 @@ char * GetStrOption(const char * arg, const char * alt)
 
 int GetOptionCount(const char * arg, const char * alt, int * first_index)
 {
-    int i = GetArgNum(arg);
+    int i = GetIndexOfArg(arg);
 
     if ( !IsValidOptionIndex(i) ) {
-        i = GetArgNum(alt);
+        i = GetIndexOfArg(alt);
         if ( !IsValidOptionIndex(i) ) {
             return 0;
         }
@@ -107,9 +107,9 @@ bool GetIntOption(int arg, int * out)
 
 bool GetIntOptionArg(const char * arg, const char * alt, int * out)
 {
-    int i = GetArgNum(arg);
+    int i = GetIndexOfArg(arg);
     if ( i == -1 ) {
-        i = GetArgNum(alt);
+        i = GetIndexOfArg(alt);
         if ( i == -1 ) return false;
     }
 

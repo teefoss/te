@@ -13,7 +13,7 @@
 void LoadArgs(int argc, char ** argv);
 bool ArgIsPresent(const char * arg);
 const char * GetArg(int index);
-int GetArgNum(const char * arg);
+int GetIndexOfArg(const char * arg);
 
 /**
  *  Get the string argument after `option`, checking optional alternative `alt`

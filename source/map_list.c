@@ -21,7 +21,7 @@ static EditorMap * map_tail;
 EditorMap * __map; // being edited.
 char __current_map_name[MAP_NAME_LEN];
 
-void OpenEditorMap(const char * path, Uint16 width, Uint16 height, Uint8 num_layers)
+void OpenEditorMap(const char * name, Uint16 width, Uint16 height, Uint8 num_layers)
 {
     EditorMap * new_map = SDL_calloc(1, sizeof(EditorMap));
     if ( new_map == NULL ) {
@@ -29,12 +29,15 @@ void OpenEditorMap(const char * path, Uint16 width, Uint16 height, Uint8 num_lay
         exit(EXIT_FAILURE);
     }
 
+    char path[1024];
+    A_GetMapPath(name, path, sizeof(path));
+
     if ( !LoadMap(&new_map->map, path) ) {
         CreateMap(path, width, height, num_layers); // Create the file.
         LoadMap(&new_map->map, path);
     }
 
-    strncpy(new_map->path, path, sizeof(new_map->path));
+    strncpy(new_map->name, name, sizeof(new_map->name));
 
     // Add to end of map list.
     if ( map_head == NULL ) {
@@ -48,7 +51,10 @@ void OpenEditorMap(const char * path, Uint16 width, Uint16 height, Uint8 num_lay
 
 void SaveCurrentMap(void)
 {
-    SaveMap(&__map->map, __map->path);
+    char path[1024];
+    A_GetMapPath(__map->name, path, sizeof(path));
+
+    SaveMap(&__map->map, path);
     __map->is_dirty = false;
 }
 
@@ -70,7 +76,7 @@ void MapNextItem(int direction)
         }
     }
 
-    strncpy(__current_map_name, __map->path, MAP_NAME_LEN);
+    strncpy(__current_map_name, __map->name, MAP_NAME_LEN);
 }
 
 const char * CurrentMapPath(void)
@@ -106,15 +112,15 @@ void InitMapViews(void)
 void SelectDefaultCurrentMap(void)
 {
     __map = map_head;
-    strncpy(__current_map_name, __map->path, MAP_NAME_LEN);
+    strncpy(__current_map_name, __map->name, MAP_NAME_LEN);
 }
 
-void SetCurrentMap(const char * path)
+void SetCurrentMap(const char * name)
 {
     for ( EditorMap * m = map_head; m != NULL; m = m->next ) {
-        if ( STREQ(m->path, path) ) {
+        if ( STREQ(m->name, name) ) {
             __map = m;
-            strncpy(__current_map_name, __map->path, sizeof(__current_map_name));
+            strncpy(__current_map_name, __map->name, sizeof(__current_map_name));
             return;
         }
     }
@@ -125,7 +131,7 @@ static void EditorStatePerform(EditorMap * editor_map,
 {
     char * project_path = GetProjectStateDirectory();
     char full_path[1024] = { 0 };
-    snprintf(full_path, sizeof(full_path), "%s/%s.txt", project_path, editor_map->path);
+    snprintf(full_path, sizeof(full_path), "%s/%s.txt", project_path, editor_map->name);
 
     Option options[] = {
         { CONFIG_FLOAT,     "x_position",   &editor_map->view.origin.x },

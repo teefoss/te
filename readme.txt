@@ -117,6 +117,7 @@ Shift-LMB               Select Map Region
 1, 2, 3...              Switch to layer
 Shift-1, Shift-2...     Toggle layer visibility
 Command-1, Command-2... Switch to layer and hide others
+`                       Show all layers
 W,A,S,D                 Scroll
 Space-LMB-Drag          Scroll
 -                       Zoom Out

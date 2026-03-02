@@ -68,7 +68,6 @@ void SetMapTile(Map * map, int x, int y, int layer, GID gid);
 
 typedef SDL_Texture * (* TilesetTextureLoader)(SDL_Renderer *, const char * id);
 
-void GetTilesetPath(const char * id, char * out, size_t len);
 void AddTileset(Tileset ** list, Tileset * tileset);
 Tileset * GetGIDLocation(Tileset * tilesets, GID gid, int * x, int * y);
 

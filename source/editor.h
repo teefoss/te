@@ -43,7 +43,7 @@ typedef struct {
 } State;
 
 typedef struct editor_map {
-    char path[MAP_NAME_LEN];
+    char name[MAP_NAME_LEN];
     Map map;
     View view;
 
@@ -60,5 +60,7 @@ typedef struct editor_map {
 } EditorMap;
 
 char * GetProjectStateDirectory(void);
+void A_GetTilesetPath(const char * id, char * out, size_t len);
+void A_GetMapPath(const char * id, char * out, size_t len);
 
 #endif /* editor_h */

@@ -324,29 +324,22 @@ void SetMapTile(Map * map, int x, int y, int layer, GID gid)
     map->tiles[layer][y * map->width + x] = gid;
 }
 
-void GetTilesetPath(const char * id, char * out, size_t len)
-{
-    if ( len == 0 ) return;
-
-    snprintf(out, len, "assets/tilesets/%s.bmp", id);
-}
-
-static SDL_Texture *
-DefaultTextureLoader(SDL_Renderer * renderer, const char * id)
-{
-    char full_path[128];
-    GetTilesetPath(id, full_path, sizeof(full_path));
-
-    SDL_Texture * texture = NULL;
-    SDL_Surface * surface = SDL_LoadBMP(full_path);
-
-    if ( surface != NULL ) {
-        texture = SDL_CreateTextureFromSurface(renderer, surface);
-        SDL_DestroySurface(surface);
-    }
-
-    return texture;
-}
+//static SDL_Texture *
+//DefaultTextureLoader(SDL_Renderer * renderer, const char * id)
+//{
+//    char full_path[128];
+//    GetTilesetPath(id, full_path, sizeof(full_path));
+//
+//    SDL_Texture * texture = NULL;
+//    SDL_Surface * surface = SDL_LoadBMP(full_path);
+//
+//    if ( surface != NULL ) {
+//        texture = SDL_CreateTextureFromSurface(renderer, surface);
+//        SDL_DestroySurface(surface);
+//    }
+//
+//    return texture;
+//}
 
 void AddTileset(Tileset ** list, Tileset * tileset)
 {
@@ -380,22 +373,26 @@ Tileset * LoadTilesets(SDL_Renderer * renderer,
         return NULL;
     }
 
+    if ( texture_loader == NULL ) {
+//        texture_loader = DefaultTextureLoader;
+        return NULL;
+    }
+
     char line[256] = { 0 };
     Tileset * list = NULL;
 
     while ( fgets(line, sizeof(line), file) ) {
-        Tileset * ts = calloc(1, sizeof(Tileset));
-        if ( ts == NULL ) {
-            fprintf(stderr, "%s: calloc failed: %s\n",
-                    __func__, strerror(errno));
-            return NULL;
-        }
+        char id[64] = { 0 };
 
-        if ( sscanf(line, "tile_set: \"%s\"\n", ts->id) == 1 ) {
-            if ( texture_loader == NULL ) {
-                texture_loader = DefaultTextureLoader;
+        if ( sscanf(line, "tile_set: \"%63[^\"]\"", id) == 1 ) {
+            Tileset * ts = calloc(1, sizeof(Tileset));
+            if ( ts == NULL ) {
+                fprintf(stderr, "%s: calloc failed: %s\n",
+                        __func__, strerror(errno));
+                return NULL;
             }
 
+            strncpy(ts->id, id, sizeof(ts->id));
             ts->texture = texture_loader(renderer, ts->id);
             if ( ts->texture == NULL ) {
                 fprintf(stderr, "%s: could not load tileset %s\n",
